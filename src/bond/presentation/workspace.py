@@ -1,18 +1,28 @@
 """Evidence inspection workspace. Synthetic data and no production actions."""
 
 from html import escape
+from uuid import uuid4
 
 import streamlit as st
 
 from bond.application import CatalogApplication, OrganizationSnapshot, ServiceAssessment
+from bond.application_workflow import AssuranceWorkflow
 from bond.demo import warehouse_fixture
 from bond.domain.models import RuleStatus
 from bond.domain.rules import summarize
+from bond.domain.workflow import (
+    ExecutionRecord,
+    RecommendationDraft,
+    VerificationRecord,
+    WorkflowDecision,
+    WorkflowStatus,
+)
 from bond.presentation.data_views import render_line_chart, render_table
 from bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer
 from bond.presentation.refinements import apply_refinements
 from bond.presentation.styles import apply_styles, load_tokens
 from bond.repositories.fixtures import FixtureCatalogRepository
+from bond.workflow_runtime import MEMORY_MODE, build_workflow_runtime
 
 PAGES = (
     "Scorecard Console",
@@ -20,6 +30,18 @@ PAGES = (
     "Pipeline Laboratory",
     "Engineering Notes",
 )
+
+WORKFLOW_SESSION_KEY = "assurance_session_id"
+
+
+def _workflow() -> AssuranceWorkflow:
+    if WORKFLOW_SESSION_KEY not in st.session_state:
+        runtime = build_workflow_runtime(MEMORY_MODE)
+        session_id = uuid4()
+        runtime.open_session(session_id)
+        st.session_state[WORKFLOW_SESSION_KEY] = session_id
+        st.session_state["assurance_workflow"] = runtime.application
+    return st.session_state["assurance_workflow"]
 
 
 def _open_service(service_id: str) -> None:
@@ -158,6 +180,179 @@ def _filtered_snapshot(
     )
 
 
+def _workflow_status_label(status: WorkflowStatus) -> str:
+    return {
+        WorkflowStatus.PROPOSED: "Proposed",
+        WorkflowStatus.APPROVED: "Approved",
+        WorkflowStatus.REJECTED: "Rejected",
+        WorkflowStatus.EXECUTED: "Simulated action recorded",
+        WorkflowStatus.VERIFIED: "Verified",
+        WorkflowStatus.REVIEW_REQUIRED: "Review required",
+    }[status]
+
+
+def _render_workflow(selected: ServiceAssessment) -> None:
+    workflow = _workflow()
+    session_id = st.session_state[WORKFLOW_SESSION_KEY]
+    service = selected.service
+
+    st.subheader("Improvement workflow")
+    st.caption(
+        "Recommendations are session isolated. Execution is simulated and "
+        "never changes production infrastructure."
+    )
+
+    recommendations = workflow.recommendations(session_id)
+    service_recommendations = tuple(
+        item for item in recommendations if item.service_id == service.id
+    )
+
+    failing_or_unknown = tuple(
+        result for result in selected.results if result.status is not RuleStatus.PASS
+    )
+
+    if failing_or_unknown:
+        with st.form("create_recommendation", border=True):
+            rule = st.selectbox(
+                "Evidence finding",
+                failing_or_unknown,
+                format_func=lambda item: f"{item.rule_id} · {item.status.value}",
+            )
+            title = st.text_input(
+                "Recommendation title",
+                value=f"Address {rule.rule_id} for {service.name}",
+            )
+            detail = st.text_area(
+                "Why this action is recommended",
+                value=rule.explanation,
+            )
+            expected = st.text_area(
+                "Expected verified result",
+                value="The selected evidence finding is resolved.",
+            )
+            submitted = st.form_submit_button("Propose recommendation")
+
+        if submitted:
+            try:
+                workflow.propose(
+                    session_id,
+                    RecommendationDraft(
+                        service_id=service.id,
+                        rule_id=rule.rule_id,
+                        rule_version=rule.version,
+                        title=title,
+                        detail=detail,
+                        owner=service.owner,
+                        expected_result=expected,
+                    ),
+                    uuid4(),
+                )
+                st.success("Recommendation proposed in this demonstration session.")
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+    else:
+        st.info("No failing or missing evidence is available for a new recommendation.")
+
+    if not service_recommendations:
+        st.caption("No recommendations exist for this service in this session.")
+        return
+
+    for item in service_recommendations:
+        with st.container(border=True):
+            status = _workflow_status_label(item.status)
+            st.write(f"**{item.title}** · {status}")
+            st.caption(
+                f"Rule {item.rule_id} · Version {item.rule_version} · "
+                f"Owner {item.owner or 'Unassigned'}"
+            )
+            st.write(item.detail)
+            st.write(f"Expected result: {item.expected_result}")
+
+            if item.status is WorkflowStatus.PROPOSED:
+                approval, rejection = st.columns(2)
+                with approval:
+                    if st.button("Approve", key=f"approve_{item.id}"):
+                        workflow.approve(
+                            item.id,
+                            session_id,
+                            WorkflowDecision(
+                                actor="Demonstration approver",
+                                reason="Approved for simulated execution.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+                with rejection:
+                    if st.button("Reject", key=f"reject_{item.id}"):
+                        workflow.reject(
+                            item.id,
+                            session_id,
+                            WorkflowDecision(
+                                actor="Demonstration approver",
+                                reason="Rejected in this demonstration session.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+
+            elif item.status is WorkflowStatus.APPROVED:
+                if st.button("Record simulated execution", key=f"execute_{item.id}"):
+                    workflow.execute(
+                        item.id,
+                        session_id,
+                        ExecutionRecord(
+                            actor="Demonstration automation",
+                            simulated_command="apply_documented_improvement",
+                            reason="The approved action is simulated.",
+                            request_id=uuid4(),
+                        ),
+                    )
+                    st.rerun()
+
+            elif item.status is WorkflowStatus.EXECUTED:
+                verified, review = st.columns(2)
+                with verified:
+                    if st.button("Verify success", key=f"verify_{item.id}"):
+                        workflow.verify(
+                            item.id,
+                            session_id,
+                            VerificationRecord(
+                                actor="Demonstration reviewer",
+                                observed_result="The expected evidence change was observed.",
+                                passed=True,
+                                reason="The expected result was confirmed.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+                with review:
+                    if st.button("Send for review", key=f"review_{item.id}"):
+                        workflow.verify(
+                            item.id,
+                            session_id,
+                            VerificationRecord(
+                                actor="Demonstration reviewer",
+                                observed_result="The expected evidence change was not observed.",
+                                passed=False,
+                                reason="Additional review is required.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+
+            with st.expander("Audit history"):
+                events = workflow.history(item.id, session_id)
+                if not events:
+                    st.caption("No workflow events are recorded yet.")
+                for event in events:
+                    st.write(
+                        f"{event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')} · "
+                        f"{event.kind.value} · {event.actor}"
+                    )
+                    st.caption(event.detail)
+
+
 def _native_service_detail(
     selected: ServiceAssessment,
     snapshot: OrganizationSnapshot,
@@ -194,6 +389,8 @@ def _native_service_detail(
             + selected.service.observed_at.isoformat()
             + ". Not a live production observation."
         )
+
+    _render_workflow(selected)
 
 
 def render_catalog(snapshot: OrganizationSnapshot) -> None:

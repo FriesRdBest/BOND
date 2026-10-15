@@ -88,7 +88,13 @@ def main() -> int:
                     """
                 ).fetchall()
 
-            expected_tables = {"catalog", "demo_sessions", "audit_events"}
+            expected_tables = {
+                "audit_events",
+                "catalog",
+                "demo_sessions",
+                "improvements",
+                "workflow_events",
+            }
             actual_tables = {str(row[0]) for row in rows}
 
             if pending:

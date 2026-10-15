@@ -1,0 +1,212 @@
+"""Controlled recommendation, approval, execution, and verification policy."""
+
+from datetime import UTC, datetime
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from bond.application_workflow import AssuranceWorkflow
+from bond.domain.models import EvidenceSource, Service
+from bond.domain.workflow import (
+    ExecutionRecord,
+    RecommendationDraft,
+    VerificationRecord,
+    WorkflowDecision,
+    WorkflowStatus,
+    WorkflowTransitionError,
+)
+from bond.repositories.memory import InMemoryWorkflowRepository
+
+OBSERVED = datetime.now(UTC)
+
+
+def service(**overrides: object) -> Service:
+    values: dict[str, object] = {
+        "id": "billing_export",
+        "name": "Billing Export",
+        "description": "Exports billing records.",
+        "owner": "Finance Platform",
+        "tier": 2,
+        "contract_visible": False,
+        "critical_vulnerabilities": 1,
+        "observed_at": OBSERVED,
+        "source": EvidenceSource.SYNTHETIC,
+    }
+    values.update(overrides)
+    return Service.model_validate(values)
+
+
+class StaticCatalog:
+    def __init__(self, item: Service | None) -> None:
+        self._item = item
+
+    def list_services(self) -> tuple[Service, ...]:
+        return () if self._item is None else (self._item,)
+
+    def get_service(self, service_id: str) -> Service | None:
+        if self._item is not None and self._item.id == service_id:
+            return self._item
+        return None
+
+
+def workflow(item: Service | None = None) -> AssuranceWorkflow:
+    return AssuranceWorkflow(
+        StaticCatalog(item if item is not None else service()),
+        InMemoryWorkflowRepository(),
+    )
+
+
+def draft() -> RecommendationDraft:
+    return RecommendationDraft(
+        service_id="billing_export",
+        rule_id="contract_visible",
+        title="Publish the billing export contract",
+        detail="The contract evidence is not visible to reviewing teams.",
+        expected_result="Contract evidence becomes visible in the catalog.",
+    )
+
+
+def test_proposal_requires_a_known_service() -> None:
+    application = workflow(service(id="other_service"))
+    with pytest.raises(ValueError, match="does not exist"):
+        application.propose(uuid4(), draft(), uuid4())
+
+
+def test_proposal_rejects_a_passing_rule() -> None:
+    application = workflow(service(contract_visible=True))
+    with pytest.raises(WorkflowTransitionError, match="passing rule"):
+        application.propose(uuid4(), draft(), uuid4())
+
+
+def test_proposal_uses_service_owner_by_default() -> None:
+    application = workflow()
+    recommendation = application.propose(uuid4(), draft(), uuid4())
+    assert recommendation.owner == "Finance Platform"
+    assert recommendation.status is WorkflowStatus.PROPOSED
+
+
+def test_complete_workflow_records_distinct_events() -> None:
+    application = workflow()
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+
+    approved = application.approve(
+        recommendation.id,
+        session_id,
+        WorkflowDecision(
+            actor="Platform Owner",
+            reason="The proposed contract publication is appropriate.",
+            request_id=uuid4(),
+        ),
+    )
+    assert approved is not None
+    assert approved.status is WorkflowStatus.APPROVED
+
+    executed = application.execute(
+        recommendation.id,
+        session_id,
+        ExecutionRecord(
+            actor="Automation",
+            simulated_command="publish_contract_documentation",
+            reason="The approved action is simulated in this demonstration.",
+            request_id=uuid4(),
+        ),
+    )
+    assert executed is not None
+    assert executed.status is WorkflowStatus.EXECUTED
+
+    verified = application.verify(
+        recommendation.id,
+        session_id,
+        VerificationRecord(
+            actor="Reviewer",
+            observed_result="The contract evidence is now visible.",
+            passed=True,
+            reason="The expected result was observed.",
+            request_id=uuid4(),
+        ),
+    )
+    assert verified is not None
+    assert verified.status is WorkflowStatus.VERIFIED
+
+    events = application.history(recommendation.id, session_id)
+    assert [event.kind for event in events] == [
+        "recommendation_created",
+        "approval_granted",
+        "simulated_execution_recorded",
+        "verification_passed",
+    ]
+
+
+def test_execution_requires_approval() -> None:
+    application = workflow()
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+
+    with pytest.raises(WorkflowTransitionError, match="cannot move"):
+        application.execute(
+            recommendation.id,
+            session_id,
+            ExecutionRecord(
+                actor="Automation",
+                simulated_command="publish_contract_documentation",
+                reason="Attempted before approval.",
+                request_id=uuid4(),
+            ),
+        )
+
+
+def test_duplicate_request_does_not_duplicate_an_event() -> None:
+    application = workflow()
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+    request_id = uuid4()
+
+    first = application.approve(
+        recommendation.id,
+        session_id,
+        WorkflowDecision(
+            actor="Platform Owner",
+            reason="Approved once.",
+            request_id=request_id,
+        ),
+    )
+    repeated = application.approve(
+        recommendation.id,
+        session_id,
+        WorkflowDecision(
+            actor="Platform Owner",
+            reason="Repeated request.",
+            request_id=request_id,
+        ),
+    )
+
+    assert first is not None
+    assert repeated is not None
+    assert repeated == first
+    assert len(application.history(recommendation.id, session_id)) == 2
+
+
+def test_recommendations_are_isolated_by_session() -> None:
+    application = workflow()
+    first_session = uuid4()
+    second_session = uuid4()
+    recommendation = application.propose(first_session, draft(), uuid4())
+
+    assert application.recommendation(recommendation.id, second_session) is None
+    assert application.recommendations(second_session) == ()
+    assert application.history(recommendation.id, second_session) == ()
+    with pytest.raises(ValueError, match="does not exist in this session"):
+        application._recommendation(recommendation.id, second_session)
+
+
+def test_invalid_draft_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        RecommendationDraft(
+            service_id="Invalid Service",
+            rule_id="contract_visible",
+            title="Publish contract",
+            detail="The contract evidence is missing.",
+            expected_result="The contract becomes visible.",
+        )

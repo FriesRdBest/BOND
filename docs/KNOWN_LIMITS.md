@@ -9,9 +9,13 @@ database credentials.
 
 ## Workflow
 
-Approval, simulated execution, independent verification, and public session
-isolation remain to be implemented. The initial audit event table does not
-constitute a completed audit workflow.
+The recommendation, approval, simulated execution, verification, and audit
+history workflow is implemented for synthetic evidence. Its public interface
+uses an in memory demonstration store unless PostgreSQL mode is explicitly
+selected.
+
+The PostgreSQL workflow migration is applied and verified. The restricted
+runtime role and public hosted session isolation remain deployment work.
 
 ## Security
 

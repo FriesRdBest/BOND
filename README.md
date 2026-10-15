@@ -134,6 +134,24 @@ remains recorded rather than suppressed.
 Automated execution tests do not establish complete accessibility,
 production capacity, or security certification.
 
+## Phase three assurance journey
+
+The Catalog Repository now connects evidence findings to a controlled
+improvement workflow. A reviewer can propose a recommendation from failing or
+missing evidence, approve or reject it, record a simulated execution, verify
+the outcome, and inspect its audit history.
+
+Workflow requests use request identifiers for idempotency. Recommendations
+and events are isolated by demonstration session. Execution is explicitly
+simulated and does not change production infrastructure.
+
+The public interface uses an in memory demonstration store by default. The
+The PostgreSQL workflow repository and migration are implemented, applied,
+and verified. The public interface remains in memory mode by default until
+restricted runtime credentials and hosted session isolation are configured.
+
+See [the phase three scope record](docs/PHASE_THREE.md).
+
 ## Phase two local verification
 
 The recorded phase two run passed 86 Python tests, six frontend contract

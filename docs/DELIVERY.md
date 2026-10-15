@@ -27,11 +27,11 @@ These are initial planning ranges for focused human implementation and review ti
 | 2 | Build all three consoles and useful fixture states. | Pending | Browser walkthrough. |
 | 2 | Add evidence detail, loading, empty, error, and success states. | Pending | Interaction tests and manual inspection. |
 | 2 | Verify responsive containment, focus, contrast, and reduced motion. | Pending | Browser checks and documented results. |
-| 3 | Ingest provenance and evaluate versioned rules. | Pending | Deterministic tests including missing evidence. |
-| 3 | Connect ownership and explain recommendations. | Pending | Traceable fixture scenario. |
-| 3 | Enforce approval, simulated execution, and independent verification. | Pending | Allowed and rejected transition tests. |
-| 3 | Persist events and isolate public demo sessions. | Pending | Persistence and cross session tests. |
-| 3 | Expose a separately runnable FastAPI interface. | Pending | API startup and contract checks. |
+| 3 | Ingest provenance and evaluate versioned rules. | Passed for synthetic evidence | Workflow and API tests cover known, missing, and failing evidence. |
+| 3 | Connect ownership and explain recommendations. | Passed | Browser and policy tests cover owner assignment recommendations. |
+| 3 | Enforce approval, simulated execution, and independent verification. | Passed | Allowed, rejected, duplicate, and failed verification paths are tested. |
+| 3 | Persist events and isolate public demo sessions. | Migration applied; hosted isolation pending | Workflow tables, idempotency, and session scoped tests are implemented. |
+| 3 | Expose a separately runnable FastAPI interface. | Passed | Workflow API contract tests pass. |
 | 4 | Test authorization, constraints, and restricted database access. | Pending | Positive and negative permission tests. |
 | 4 | Test duplicate requests, retries, failures, and recovery. | Pending | Reproducible failure scenarios. |
 | 4 | Run lint, types, unit, integration, browser, and security checks. | Pending | Recorded commands and outcomes. |

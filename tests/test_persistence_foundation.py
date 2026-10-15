@@ -42,7 +42,7 @@ def test_migration_resources_have_stable_checksums() -> None:
     first = load_migrations()
     second = load_migrations()
     assert first == second
-    assert len(first) == 1
+    assert len(first) == 2
     assert len(first[0].checksum) == 64
 
 

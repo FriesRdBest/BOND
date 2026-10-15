@@ -9,7 +9,11 @@ def test_health_does_not_require_database_credentials() -> None:
     with TestClient(app) as client:
         response = client.get("/health/live")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "mode": "synthetic"}
+    assert response.json() == {
+        "status": "ok",
+        "mode": "synthetic",
+        "workflow_store": "memory",
+    }
 
 
 def test_catalog_is_paginated() -> None:
