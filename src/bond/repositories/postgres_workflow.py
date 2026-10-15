@@ -95,6 +95,10 @@ class PostgresWorkflowRepository:
             self._settings,
             application_name="bond_workflow_write",
         ) as connection:
+            connection.execute(
+                "SELECT set_config('bond.session_id', %s, true)",
+                (str(recommendation.session_id),),
+            )
             row = connection.execute(
                 f"""
                 INSERT INTO bond.improvements (

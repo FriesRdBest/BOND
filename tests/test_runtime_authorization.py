@@ -165,3 +165,48 @@ def test_event_insert_binds_and_scopes_the_session(
         event.request_id,
         event.occurred_at,
     )
+
+
+def test_recommendation_creation_binds_session_before_insert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = FakeConnection()
+    monkeypatch.setattr(
+        "bond.repositories.postgres_workflow.connect_database",
+        lambda *args, **kwargs: fake_database_connection(connection),
+    )
+
+    from bond.domain.workflow import Recommendation
+
+    session_id = uuid4()
+    timestamp = datetime.now(UTC)
+    recommendation = Recommendation.model_validate(
+        {
+            "id": uuid4(),
+            "session_id": session_id,
+            "service_id": "billing_export",
+            "rule_id": "ownership_assigned",
+            "rule_version": "1",
+            "title": "Verify recommendation session binding",
+            "detail": "Synthetic repository regression test.",
+            "owner": None,
+            "expected_result": "Session binding precedes insertion.",
+            "status": "proposed",
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        }
+    )
+
+    repository = PostgresWorkflowRepository(settings())
+    with pytest.raises(RuntimeError, match="did not return a recommendation"):
+        repository.create_recommendation(recommendation)
+
+    assert len(connection.calls) == 2
+    assert connection.calls[0] == (
+        "SELECT set_config('bond.session_id', %s, true)",
+        (str(session_id),),
+    )
+    assert "INSERT INTO bond.improvements" in connection.calls[1][0]
+    parameters = connection.calls[1][1]
+    assert parameters is not None
+    assert parameters[1] == session_id
