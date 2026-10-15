@@ -1,0 +1,1 @@
+"""Packaged synthetic demonstration data."""

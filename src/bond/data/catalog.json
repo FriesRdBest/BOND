@@ -1,0 +1,85 @@
+[
+  {
+    "id": "identity_gateway",
+    "name": "Identity Gateway",
+    "description": "Routes authenticated requests to internal services.",
+    "owner": "Platform Engineering",
+    "tier": 1,
+    "dependencies": [],
+    "contract_visible": true,
+    "critical_vulnerabilities": 0,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  },
+  {
+    "id": "warehouse_ingestion",
+    "name": "Warehouse Ingestion",
+    "description": "Collects warehouse evidence for engineering evaluation.",
+    "owner": "Data Platform",
+    "tier": 1,
+    "dependencies": [
+      "identity_gateway"
+    ],
+    "contract_visible": true,
+    "critical_vulnerabilities": 0,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  },
+  {
+    "id": "query_observer",
+    "name": "Query Observer",
+    "description": "Summarizes query latency and warehouse credit evidence.",
+    "owner": "Data Platform",
+    "tier": 2,
+    "dependencies": [
+      "warehouse_ingestion"
+    ],
+    "contract_visible": false,
+    "critical_vulnerabilities": 0,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  },
+  {
+    "id": "billing_export",
+    "name": "Billing Export",
+    "description": "Produces synthetic usage exports for review.",
+    "owner": null,
+    "tier": 2,
+    "dependencies": [
+      "warehouse_ingestion"
+    ],
+    "contract_visible": true,
+    "critical_vulnerabilities": 1,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  },
+  {
+    "id": "policy_evaluator",
+    "name": "Policy Evaluator",
+    "description": "Evaluates versioned engineering maturity rules.",
+    "owner": "Developer Experience",
+    "tier": 1,
+    "dependencies": [
+      "identity_gateway",
+      "query_observer"
+    ],
+    "contract_visible": true,
+    "critical_vulnerabilities": null,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  },
+  {
+    "id": "notification_dispatch",
+    "name": "Notification Dispatch",
+    "description": "Delivers simulated improvement notifications.",
+    "owner": "Developer Experience",
+    "tier": 3,
+    "dependencies": [
+      "policy_evaluator"
+    ],
+    "contract_visible": null,
+    "critical_vulnerabilities": 0,
+    "observed_at": "2026-10-15T12:00:00Z",
+    "source": "synthetic"
+  }
+]

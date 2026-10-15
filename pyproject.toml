@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bond-assurance"
+version = "0.1.0"
+description = "An independent engineering assurance workbench."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+dependencies = [
+    "streamlit>=1.45,<2",
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.8,<3",
+    "psycopg[binary,pool]>=3.2,<4",
+    "certifi>=2025.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11,<1",
+    "pyright>=1.1.400,<2",
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "httpx>=0.28,<1",
+    "pip-audit>=2.8,<3",
+    "pandas-stubs>=3.0.5.260914",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bond"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.pyright]
+include = ["src/bond"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# BOND local configuration and generated outputs
+.env.*
+!.env.example
+.streamlit/secrets*.toml
+node_modules/
+frontend/dist/
+playwright-report/
+test-results/
+.artifacts/
+.local/
+.pyright/

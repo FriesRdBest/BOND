@@ -1,0 +1,15 @@
+.git
+.venv
+.env
+.env.*
+.streamlit/secrets*.toml
+.artifacts
+.local
+__pycache__
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+node_modules
+tests
+scripts
