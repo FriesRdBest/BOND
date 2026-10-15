@@ -30,7 +30,7 @@ class WorkflowRuntime:
 
 def build_workflow_runtime(
     mode: str = MEMORY_MODE,
-    database_settings: Mapping[str, str] | None = None,
+    database_settings: Mapping[str, object] | None = None,
 ) -> WorkflowRuntime:
     catalog = FixtureCatalogRepository()
 
@@ -51,7 +51,7 @@ def build_workflow_runtime(
     raise ValueError("Workflow storage mode must be memory or postgres.")
 
 
-def build_hosted_workflow_runtime(source: Mapping[str, str]) -> WorkflowRuntime:
+def build_hosted_workflow_runtime(source: Mapping[str, object]) -> WorkflowRuntime:
     """Select durable PostgreSQL mode only when restricted settings are supplied."""
 
     database_settings = {
