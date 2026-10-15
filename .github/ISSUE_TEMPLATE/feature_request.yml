@@ -1,0 +1,49 @@
+name: Feature request
+ description: Propose a focused improvement to BOND.
+ labels: ["enhancement"]
+ body:
+   - type: markdown
+     attributes:
+       value: |
+         Thank you for proposing an improvement. Please keep the proposal focused on BOND’s evidence to verification workflow and its established product boundaries.
+   - type: textarea
+     id: problem
+     attributes:
+       label: Problem or opportunity
+       description: What user need, engineering gap, or documentation gap does this address?
+     validations:
+       required: true
+   - type: textarea
+     id: proposal
+     attributes:
+       label: Proposed change
+       description: Describe the requested behavior or improvement.
+     validations:
+       required: true
+   - type: textarea
+     id: alternatives
+     attributes:
+       label: Alternatives considered
+       description: Describe other approaches you considered, if any.
+   - type: textarea
+     id: verification
+     attributes:
+       label: Verification approach
+       description: Explain how the change could be tested or verified.
+   - type: dropdown
+     id: area
+     attributes:
+       label: Area
+       options:
+         - Streamlit interface
+         - Catalog Repository
+         - Scorecard Console
+         - Pipeline Laboratory
+         - Assurance workflow
+         - FastAPI interface
+         - PostgreSQL persistence
+         - Frontend component
+         - Documentation
+         - Other
+     validations:
+       required: true

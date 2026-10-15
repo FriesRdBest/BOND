@@ -1,0 +1,58 @@
+name: Bug report
+ description: Report a reproducible problem in BOND.
+ labels: ["bug"]
+ body:
+   - type: markdown
+     attributes:
+       value: |
+         Thank you for reporting a problem. Please remove secrets, credentials, tokens, and private data before submitting.
+   - type: textarea
+     id: summary
+     attributes:
+       label: Summary
+       description: Describe the problem in one or two sentences.
+     validations:
+       required: true
+   - type: textarea
+     id: expected
+     attributes:
+       label: Expected behavior
+       description: What did you expect BOND to do?
+     validations:
+       required: true
+   - type: textarea
+     id: actual
+     attributes:
+       label: Actual behavior
+       description: What actually happened? Include relevant error output with secrets removed.
+     validations:
+       required: true
+   - type: textarea
+     id: reproduction
+     attributes:
+       label: Reproduction steps
+       description: List the commands, pages, or workflow actions needed to reproduce the issue.
+     validations:
+       required: true
+   - type: dropdown
+     id: area
+     attributes:
+       label: Area
+       options:
+         - Streamlit interface
+         - Catalog Repository
+         - Scorecard Console
+         - Pipeline Laboratory
+         - Assurance workflow
+         - FastAPI interface
+         - PostgreSQL persistence
+         - Frontend component
+         - Documentation
+         - Other
+     validations:
+       required: true
+   - type: textarea
+     id: environment
+     attributes:
+       label: Environment
+       description: Include the operating system, browser, Python version, and relevant command output.
