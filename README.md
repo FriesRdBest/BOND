@@ -87,10 +87,9 @@ release work.
 | Area | Remaining work |
 | --- | --- |
 | Interface acceptance | Final owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
-| Live database verification | Verify the restricted runtime connection, atomic rollback, retry behavior, concurrent transitions, and hosted session isolation against Supabase. |
 | Durable public workflow | Decide and verify whether the hosted public demonstration should connect to PostgreSQL rather than remain in memory mode by default. |
 | Database hardening | Review migration table access, add covering indexes for workflow event foreign keys, and optimize row level security policy evaluation. |
-| Release verification | Performance measurements, container validation, final accessibility review, and hosted acceptance. |
+| Release verification | Hosted acceptance and final submission safeguards. |
 | Submission safeguards | Final repository review, main protection, and required checks. |
 
 The presence of a table, adapter, workflow file, or test tool is not
@@ -124,25 +123,27 @@ evidence. Reviewers do not need warehouse credentials.
 
 ## Verification recorded
 
-The latest verified checkpoint is `fc79e97`, “Recheck workflow state within
-atomic transitions.” At that checkpoint, both GitHub workflows completed
-successfully.
+The latest verified checkpoint is `2ac9cb3`, “Record October 15 technical
+verification.” At that checkpoint, the local quality gates, live Supabase
+authorization and atomic persistence checks, frontend contract tests, browser
+tests, dependency audits, and Docker image build completed successfully.
 
 | Check | Recorded result |
 | --- | --- |
 | Python test suite | 113 passed. |
-| Frontend contract tests | Passed in the Quality workflow. |
-| Real Chromium browser tests | Passed in the Quality workflow. |
+| PostgreSQL atomic, authorization, and persistence tests | 16 passed. |
+| Frontend contract tests | 6 passed. |
+| Explorer bridge, contract, event, and query navigation tests | 24 passed. |
 | Ruff format and lint | Passed. |
 | Pyright | Zero errors and zero warnings. |
-| Local disclosure guard | Passed; its limited scope is documented. |
-| Dependency audits | No findings reported in the inspected application and frontend dependency sets. |
-| GitHub Quality workflow | Python contracts, frontend build, browser behavior, and dependency checks passed. |
-| GitHub CodeQL workflow | Python and JavaScript TypeScript analysis passed. |
-| PostgreSQL workflow migration | Applied and verified. |
-| Restricted role verification | Application isolation, direct row level security isolation, cross session insertion denial, metadata access denial, and audit mutation privilege denial were verified. |
+| Dependency audits | Zero vulnerabilities reported in the inspected application and frontend dependency sets. |
+| Live database authentication | Passed with client certificate and hostname verification. |
+| Restricted runtime role | Application isolation, row level security isolation, cross session insertion denial, metadata access denial, and audit mutation privilege denial were verified. |
 | Atomic persistence | Proposal and transition operations commit their event and state change together or roll back together. |
 | Concurrent transition safety | A competing rejection prevents a later approval from using stale state. |
+| Docker image build | Passed; image digest `sha256:347d1c9b0aafea683db76387734ebc89ee842fa38421a4bab4ebdf378f775695`. |
+| GitHub Quality workflow | Python contracts, frontend build, browser behavior, and dependency checks passed. |
+| GitHub CodeQL workflow | Python and JavaScript TypeScript analysis passed. |
 
 These results describe the verified checkpoint, not a claim that every
 future commit has passed. Inspect GitHub Actions for current workflow
@@ -154,6 +155,9 @@ remains recorded rather than suppressed.
 Automated execution tests do not establish complete accessibility,
 production capacity, security certification, live database recovery, or
 unrestricted hosted availability.
+
+See [the October 15 verification record](docs/VERIFICATION_2026-10-15.md)
+for the complete scope, results, and boundaries.
 
 ## Assurance workflow
 
@@ -267,6 +271,7 @@ BOND does not claim that every connection is encrypted.
 | [Phase three scope](docs/PHASE_THREE.md) | Assurance workflow scope and boundaries. |
 | [Phase three verification](docs/PHASE_THREE_VERIFICATION.md) | Recorded phase three checks and limitations. |
 | [Phase four verification](docs/PHASE_FOUR_VERIFICATION.md) | Restricted authorization, atomic persistence, and recovery evidence. |
+| [October 15 verification](docs/VERIFICATION_2026-10-15.md) | Current technical verification results and boundaries. |
 | [Security](docs/SECURITY.md) | Credential handling and verification expectations. |
 | [Known limits](docs/KNOWN_LIMITS.md) | Incomplete capabilities and maintenance findings. |
 | [Operating plan](docs/OPERATIONS.md) | Hosting, recovery expectations, and the ninety day plan. |
