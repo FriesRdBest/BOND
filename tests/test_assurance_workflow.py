@@ -210,3 +210,121 @@ def test_invalid_draft_is_rejected() -> None:
             detail="The contract evidence is missing.",
             expected_result="The contract becomes visible.",
         )
+
+
+def test_proposal_rejects_mismatched_rule_version() -> None:
+    application = workflow()
+    session_id = uuid4()
+    stale_draft = draft().model_copy(update={"rule_version": "stale_version"})
+
+    with pytest.raises(WorkflowTransitionError, match="rule version"):
+        application.propose(session_id, stale_draft, uuid4())
+
+    assert application.recommendations(session_id) == ()
+
+
+def test_transition_request_cannot_be_reused_for_another_operation() -> None:
+    application = workflow()
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+    request_id = uuid4()
+    decision = WorkflowDecision(
+        actor="Platform Owner",
+        reason="Approve the proposed improvement.",
+        request_id=request_id,
+    )
+
+    approved = application.approve(recommendation.id, session_id, decision)
+    assert approved is not None
+    assert approved.status is WorkflowStatus.APPROVED
+
+    with pytest.raises(WorkflowTransitionError, match="different operation"):
+        application.reject(recommendation.id, session_id, decision)
+
+    assert application.recommendation(recommendation.id, session_id) == approved
+    assert len(application.history(recommendation.id, session_id)) == 2
+
+
+def test_creation_request_cannot_be_reused_for_approval() -> None:
+    application = workflow()
+    session_id = uuid4()
+    request_id = uuid4()
+    recommendation = application.propose(session_id, draft(), request_id)
+
+    with pytest.raises(WorkflowTransitionError, match="different operation"):
+        application.approve(
+            recommendation.id,
+            session_id,
+            WorkflowDecision(
+                actor="Platform Owner",
+                reason="Attempt to reuse the creation request.",
+                request_id=request_id,
+            ),
+        )
+
+    assert application.recommendation(recommendation.id, session_id) == recommendation
+    assert len(application.history(recommendation.id, session_id)) == 1
+
+
+def test_memory_transaction_rolls_back_failed_creation() -> None:
+    repository = InMemoryWorkflowRepository()
+    application = AssuranceWorkflow(StaticCatalog(service()), repository)
+    session_id = uuid4()
+    request_id = uuid4()
+
+    with pytest.raises(RuntimeError, match="Injected creation failure"):
+        with repository.atomic(session_id):
+            application.propose(session_id, draft(), request_id)
+            raise RuntimeError("Injected creation failure")
+
+    assert application.recommendations(session_id) == ()
+
+    with repository.atomic(session_id):
+        retried = application.propose(session_id, draft(), request_id)
+
+    assert len(application.recommendations(session_id)) == 1
+    assert len(application.history(retried.id, session_id)) == 1
+
+
+def test_memory_transaction_rolls_back_failed_transition() -> None:
+    repository = InMemoryWorkflowRepository()
+    application = AssuranceWorkflow(StaticCatalog(service()), repository)
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+    decision = WorkflowDecision(
+        actor="Platform Owner",
+        reason="Verify rollback and retry.",
+        request_id=uuid4(),
+    )
+
+    with pytest.raises(RuntimeError, match="Injected transition failure"):
+        with repository.atomic(session_id):
+            application.approve(recommendation.id, session_id, decision)
+            raise RuntimeError("Injected transition failure")
+
+    assert application.recommendation(recommendation.id, session_id) == recommendation
+    assert len(application.history(recommendation.id, session_id)) == 1
+
+    with repository.atomic(session_id):
+        approved = application.approve(recommendation.id, session_id, decision)
+
+    assert approved is not None
+    assert approved.status is WorkflowStatus.APPROVED
+    assert len(application.history(recommendation.id, session_id)) == 2
+
+
+def test_memory_transaction_restores_state_after_nested_failure() -> None:
+    repository = InMemoryWorkflowRepository()
+    application = AssuranceWorkflow(StaticCatalog(service()), repository)
+    session_id = uuid4()
+
+    with repository.atomic(session_id):
+        retained = application.propose(session_id, draft(), uuid4())
+        with pytest.raises(RuntimeError, match="Injected nested failure"):
+            with repository.atomic(session_id):
+                application.propose(session_id, draft(), uuid4())
+                raise RuntimeError("Injected nested failure")
+
+        assert application.recommendations(session_id) == (retained,)
+
+    assert application.recommendations(session_id) == (retained,)

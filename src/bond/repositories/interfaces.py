@@ -1,5 +1,6 @@
 """Framework independent repository contracts."""
 
+from contextlib import AbstractContextManager
 from typing import Protocol
 from uuid import UUID
 
@@ -14,6 +15,10 @@ class CatalogRepository(Protocol):
 
 
 class WorkflowRepository(Protocol):
+    def atomic(self, session_id: UUID) -> AbstractContextManager[None]:
+        """Run participating writes in one recoverable transaction."""
+        ...
+
     def ensure_session(self, session_id: UUID) -> None: ...
 
     def create_recommendation(self, recommendation: Recommendation) -> Recommendation: ...

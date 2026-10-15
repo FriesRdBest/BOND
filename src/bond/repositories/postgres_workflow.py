@@ -1,6 +1,12 @@
-"""Durable PostgreSQL workflow adapter with session scoped reads and writes."""
+"""Durable PostgreSQL workflow adapter with session scoped atomic writes."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Any
 from uuid import UUID
+
+from psycopg import Connection
 
 from bond.config import DatabaseSettings
 from bond.domain.workflow import Recommendation, WorkflowEvent
@@ -31,6 +37,11 @@ _EVENT_COLUMNS = """
     request_id,
     occurred_at
 """
+
+_ACTIVE_CONNECTION: ContextVar[Connection[tuple[Any, ...]] | None] = ContextVar(
+    "bond_atomic_workflow_connection",
+    default=None,
+)
 
 
 def _recommendation(row: tuple[object, ...]) -> Recommendation:
@@ -71,10 +82,12 @@ class PostgresWorkflowRepository:
     def __init__(self, settings: DatabaseSettings) -> None:
         self._settings = settings
 
-    def ensure_session(self, session_id: UUID) -> None:
+    @contextmanager
+    def atomic(self, session_id: UUID) -> Generator[None]:
+        """Run participating operations in one transaction and serialize them."""
         with connect_database(
             self._settings,
-            application_name="bond_workflow_write",
+            application_name="bond_workflow_atomic",
         ) as connection:
             with connection.transaction():
                 connection.execute(
@@ -82,23 +95,80 @@ class PostgresWorkflowRepository:
                     (str(session_id),),
                 )
                 connection.execute(
-                    """
-                    INSERT INTO bond.demo_sessions (session_id)
-                    VALUES (%s)
-                    ON CONFLICT (session_id) DO NOTHING
-                    """,
-                    (session_id,),
+                    "SELECT pg_advisory_xact_lock(45098013, hashtext(%s))",
+                    (str(session_id),),
                 )
+                token = _ACTIVE_CONNECTION.set(connection)
+                try:
+                    yield
+                finally:
+                    _ACTIVE_CONNECTION.reset(token)
 
-    def create_recommendation(self, recommendation: Recommendation) -> Recommendation:
+    @contextmanager
+    def _write_connection(
+        self,
+        session_id: UUID,
+        application_name: str = "bond_workflow_write",
+    ) -> Generator[Connection[tuple[Any, ...]]]:
+        active = _ACTIVE_CONNECTION.get()
+        if active is not None:
+            active.execute(
+                "SELECT set_config('bond.session_id', %s, true)",
+                (str(session_id),),
+            )
+            yield active
+            return
+
         with connect_database(
             self._settings,
-            application_name="bond_workflow_write",
+            application_name=application_name,
         ) as connection:
-            connection.execute(
+            with connection.transaction():
+                connection.execute(
+                    "SELECT set_config('bond.session_id', %s, true)",
+                    (str(session_id),),
+                )
+                yield connection
+
+    @contextmanager
+    def _read_connection(
+        self,
+        session_id: UUID,
+    ) -> Generator[Connection[tuple[Any, ...]]]:
+        active = _ACTIVE_CONNECTION.get()
+        if active is not None:
+            active.execute(
                 "SELECT set_config('bond.session_id', %s, true)",
-                (str(recommendation.session_id),),
+                (str(session_id),),
             )
+            yield active
+            return
+
+        with connect_database(
+            self._settings,
+            application_name="bond_workflow_read",
+        ) as connection:
+            connection.execute("SET TRANSACTION READ ONLY")
+            with connection.transaction():
+                connection.execute(
+                    "SELECT set_config('bond.session_id', %s, true)",
+                    (str(session_id),),
+                )
+                yield connection
+
+    def ensure_session(self, session_id: UUID) -> None:
+        with self._write_connection(session_id) as connection:
+            connection.execute(
+                """
+                INSERT INTO bond.demo_sessions (session_id)
+                VALUES (%s)
+                ON CONFLICT (session_id) DO NOTHING
+                """,
+                (session_id,),
+            )
+
+    def create_recommendation(self, recommendation: Recommendation) -> Recommendation:
+        with self._write_connection(recommendation.session_id) as connection:
             row = connection.execute(
                 f"""
                 INSERT INTO bond.improvements (
@@ -132,109 +202,75 @@ class PostgresWorkflowRepository:
         improvement_id: UUID,
         session_id: UUID,
     ) -> Recommendation | None:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_read",
-        ) as connection:
-            connection.execute("SET TRANSACTION READ ONLY")
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(session_id),),
-                )
-                row = connection.execute(
-                    f"""
-                    SELECT {_RECOMMENDATION_COLUMNS}
-                    FROM bond.improvements
-                    WHERE id = %s AND session_id = %s
-                    """,
-                    (improvement_id, session_id),
-                ).fetchone()
+        with self._read_connection(session_id) as connection:
+            row = connection.execute(
+                f"""
+                SELECT {_RECOMMENDATION_COLUMNS}
+                FROM bond.improvements
+                WHERE id = %s AND session_id = %s
+                """,
+                (improvement_id, session_id),
+            ).fetchone()
         return None if row is None else _recommendation(row)
 
     def list_recommendations(self, session_id: UUID) -> tuple[Recommendation, ...]:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_read",
-        ) as connection:
-            connection.execute("SET TRANSACTION READ ONLY")
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(session_id),),
-                )
-                rows = connection.execute(
-                    f"""
-                    SELECT {_RECOMMENDATION_COLUMNS}
-                    FROM bond.improvements
-                    WHERE session_id = %s
-                    ORDER BY created_at DESC, id
-                    """,
-                    (session_id,),
-                ).fetchall()
+        with self._read_connection(session_id) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT {_RECOMMENDATION_COLUMNS}
+                FROM bond.improvements
+                WHERE session_id = %s
+                ORDER BY created_at DESC, id
+                """,
+                (session_id,),
+            ).fetchall()
         return tuple(_recommendation(row) for row in rows)
 
     def update_recommendation(self, recommendation: Recommendation) -> Recommendation:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_write",
-        ) as connection:
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(recommendation.session_id),),
-                )
-                row = connection.execute(
-                    f"""
-                    UPDATE bond.improvements
-                    SET status = %s,
-                        updated_at = %s
-                    WHERE id = %s
-                      AND session_id = %s
-                    RETURNING {_RECOMMENDATION_COLUMNS}
-                    """,
-                    (
-                        recommendation.status.value,
-                        recommendation.updated_at,
-                        recommendation.id,
-                        recommendation.session_id,
-                    ),
-                ).fetchone()
+        with self._write_connection(recommendation.session_id) as connection:
+            row = connection.execute(
+                f"""
+                UPDATE bond.improvements
+                SET status = %s,
+                    updated_at = %s
+                WHERE id = %s
+                  AND session_id = %s
+                RETURNING {_RECOMMENDATION_COLUMNS}
+                """,
+                (
+                    recommendation.status.value,
+                    recommendation.updated_at,
+                    recommendation.id,
+                    recommendation.session_id,
+                ),
+            ).fetchone()
         if row is None:
             raise ValueError("The recommendation does not exist in this session.")
         return _recommendation(row)
 
     def append_event(self, event: WorkflowEvent) -> WorkflowEvent | None:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_write",
-        ) as connection:
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(event.session_id),),
+        with self._write_connection(event.session_id) as connection:
+            row = connection.execute(
+                f"""
+                INSERT INTO bond.workflow_events (
+                    {_EVENT_COLUMNS}
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
                 )
-                row = connection.execute(
-                    f"""
-                    INSERT INTO bond.workflow_events (
-                        {_EVENT_COLUMNS}
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s
-                    )
-                    ON CONFLICT (improvement_id, request_id) DO NOTHING
-                    RETURNING {_EVENT_COLUMNS}
-                    """,
-                    (
-                        event.id,
-                        event.improvement_id,
-                        event.session_id,
-                        event.kind.value,
-                        event.actor,
-                        event.detail,
-                        event.request_id,
-                        event.occurred_at,
-                    ),
-                ).fetchone()
+                ON CONFLICT (improvement_id, request_id) DO NOTHING
+                RETURNING {_EVENT_COLUMNS}
+                """,
+                (
+                    event.id,
+                    event.improvement_id,
+                    event.session_id,
+                    event.kind.value,
+                    event.actor,
+                    event.detail,
+                    event.request_id,
+                    event.occurred_at,
+                ),
+            ).fetchone()
         return None if row is None else _event(row)
 
     def find_event(
@@ -243,24 +279,15 @@ class PostgresWorkflowRepository:
         session_id: UUID,
         request_id: UUID,
     ) -> WorkflowEvent | None:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_read",
-        ) as connection:
-            connection.execute("SET TRANSACTION READ ONLY")
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(session_id),),
-                )
-                row = connection.execute(
-                    f"""
-                    SELECT {_EVENT_COLUMNS}
-                    FROM bond.workflow_events
-                    WHERE improvement_id = %s AND request_id = %s
-                    """,
-                    (improvement_id, request_id),
-                ).fetchone()
+        with self._read_connection(session_id) as connection:
+            row = connection.execute(
+                f"""
+                SELECT {_EVENT_COLUMNS}
+                FROM bond.workflow_events
+                WHERE improvement_id = %s AND request_id = %s
+                """,
+                (improvement_id, request_id),
+            ).fetchone()
         return None if row is None else _event(row)
 
     def list_events(
@@ -268,23 +295,14 @@ class PostgresWorkflowRepository:
         improvement_id: UUID,
         session_id: UUID,
     ) -> tuple[WorkflowEvent, ...]:
-        with connect_database(
-            self._settings,
-            application_name="bond_workflow_read",
-        ) as connection:
-            connection.execute("SET TRANSACTION READ ONLY")
-            with connection.transaction():
-                connection.execute(
-                    "SELECT set_config('bond.session_id', %s, true)",
-                    (str(session_id),),
-                )
-                rows = connection.execute(
-                    f"""
-                    SELECT {_EVENT_COLUMNS}
-                    FROM bond.workflow_events
-                    WHERE improvement_id = %s AND session_id = %s
-                    ORDER BY occurred_at, id
-                    """,
-                    (improvement_id, session_id),
-                ).fetchall()
+        with self._read_connection(session_id) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT {_EVENT_COLUMNS}
+                FROM bond.workflow_events
+                WHERE improvement_id = %s AND session_id = %s
+                ORDER BY occurred_at, id
+                """,
+                (improvement_id, session_id),
+            ).fetchall()
         return tuple(_event(row) for row in rows)

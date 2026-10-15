@@ -66,38 +66,43 @@ class AssuranceWorkflow:
         detail: str,
         request_id: UUID,
     ) -> Recommendation | None:
-        existing = self._workflows.find_event(
-            recommendation.id,
-            recommendation.session_id,
-            request_id,
-        )
-        if existing is not None:
-            return recommendation
+        with self._workflows.atomic(recommendation.session_id):
+            existing = self._workflows.find_event(
+                recommendation.id,
+                recommendation.session_id,
+                request_id,
+            )
+            if existing is not None:
+                if existing.kind != event_kind:
+                    raise WorkflowTransitionError(
+                        "The request identifier was already used for a different operation."
+                    )
+                return recommendation
 
-        require_transition(recommendation.status, next_status)
+            require_transition(recommendation.status, next_status)
 
-        event = WorkflowEvent(
-            id=uuid4(),
-            improvement_id=recommendation.id,
-            session_id=recommendation.session_id,
-            kind=event_kind,
-            actor=actor,
-            detail=detail,
-            request_id=request_id,
-            occurred_at=utc_now(),
-        )
+            event = WorkflowEvent(
+                id=uuid4(),
+                improvement_id=recommendation.id,
+                session_id=recommendation.session_id,
+                kind=event_kind,
+                actor=actor,
+                detail=detail,
+                request_id=request_id,
+                occurred_at=utc_now(),
+            )
 
-        recorded = self._workflows.append_event(event)
-        if recorded is None:
-            return None
+            recorded = self._workflows.append_event(event)
+            if recorded is None:
+                return None
 
-        updated = recommendation.model_copy(
-            update={
-                "status": next_status,
-                "updated_at": event.occurred_at,
-            }
-        )
-        return self._workflows.update_recommendation(updated)
+            updated = recommendation.model_copy(
+                update={
+                    "status": next_status,
+                    "updated_at": event.occurred_at,
+                }
+            )
+            return self._workflows.update_recommendation(updated)
 
     def open_session(self, session_id: UUID) -> None:
         self._workflows.ensure_session(session_id)
@@ -120,6 +125,11 @@ class AssuranceWorkflow:
         if matching is None:
             raise ValueError("The selected rule does not apply to this service.")
 
+        if draft.rule_version != matching.version:
+            raise WorkflowTransitionError(
+                "The submitted rule version does not match the evaluated evidence."
+            )
+
         if matching.status == RuleStatus.PASS:
             raise WorkflowTransitionError(
                 "A passing rule result cannot create an improvement recommendation."
@@ -141,10 +151,9 @@ class AssuranceWorkflow:
             updated_at=timestamp,
         )
 
-        created = self._workflows.create_recommendation(recommendation)
         event = WorkflowEvent(
             id=uuid4(),
-            improvement_id=created.id,
+            improvement_id=recommendation.id,
             session_id=session_id,
             kind=WorkflowEventKind.RECOMMENDATION_CREATED,
             actor="BOND",
@@ -155,7 +164,9 @@ class AssuranceWorkflow:
             request_id=request_id,
             occurred_at=timestamp,
         )
-        self._workflows.append_event(event)
+        with self._workflows.atomic(session_id):
+            created = self._workflows.create_recommendation(recommendation)
+            self._workflows.append_event(event)
         return created
 
     def approve(

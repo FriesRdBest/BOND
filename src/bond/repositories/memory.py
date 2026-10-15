@@ -1,5 +1,8 @@
 """Session isolated in memory workflow storage for the public demonstration."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
+from threading import RLock
 from uuid import UUID
 
 from bond.domain.workflow import Recommendation, WorkflowEvent
@@ -13,6 +16,24 @@ class InMemoryWorkflowRepository:
         self._events: dict[UUID, list[WorkflowEvent]] = {}
         self._request_ids: set[UUID] = set()
         self._sessions: set[UUID] = set()
+        self._transaction_lock = RLock()
+
+    @contextmanager
+    def atomic(self, session_id: UUID) -> Generator[None]:
+        """Serialize participating operations and restore state on failure."""
+        with self._transaction_lock:
+            recommendations = self._recommendations.copy()
+            events = {identifier: list(items) for identifier, items in self._events.items()}
+            request_ids = self._request_ids.copy()
+            sessions = self._sessions.copy()
+            try:
+                yield
+            except BaseException:
+                self._recommendations = recommendations
+                self._events = events
+                self._request_ids = request_ids
+                self._sessions = sessions
+                raise
 
     def ensure_session(self, session_id: UUID) -> None:
         self._sessions.add(session_id)
