@@ -12,6 +12,7 @@ journey. Recommendations are isolated by demonstration session, workflow
 requests use idempotency identifiers, and execution is explicitly simulated.
 
 [Explore the hosted demonstration](https://b-o-n-d.streamlit.app/)
+· [Follow the reviewer walkthrough](docs/REVIEWER_WALKTHROUGH.md)
 · [Inspect the architecture](docs/ARCHITECTURE.md)
 · [Review verified progress](docs/PHASE_ONE.md)
 · [Read current limitations](docs/KNOWN_LIMITS.md)
@@ -65,6 +66,9 @@ Finish with Engineering Notes and the linked source files to
 distinguish implemented behavior from the remaining hardening and
 release work.
 
+For a complete executive and technical review path, see
+[the reviewer walkthrough](docs/REVIEWER_WALKTHROUGH.md).
+
 ## What works today
 
 | Capability | Current state |
@@ -77,9 +81,10 @@ release work.
 | Atomic persistence | Workflow events and recommendation state changes commit together or roll back together in the memory and PostgreSQL adapters. |
 | Workflow recovery | Failed proposals and transitions roll back, repeated requests do not duplicate an operation, and request identifiers cannot be reused for a different operation. |
 | Concurrent transition safety | A transition rechecks recommendation state after acquiring the session transaction lock, preventing an approval from overwriting a competing rejection. |
+| Hosted storage selection | The hosted Streamlit application uses durable PostgreSQL workflow storage when restricted `BOND_DB_*` settings are supplied; otherwise it uses the in-memory demonstration store. |
 | Warehouse demonstration | Fixed synthetic query samples, nearest rank P95, and Decimal credit rate calculations. |
 | PostgreSQL foundation | Versioned schema, migration checksums, synthetic catalog seed, workflow migrations, session scoped row level security, and a restricted application role. |
-| Application safety | The public interface uses fixtures and an in memory demonstration store by default; it does not use administrative database access. |
+| Application safety | The public interface uses fixtures and an in-memory demonstration store by default; it does not use administrative database access. |
 | Automated verification | Python formatting, lint, strict source type checking, domain tests, API tests, Streamlit execution tests, frontend contract tests, and real browser tests. |
 
 ## What remains for release
@@ -87,9 +92,8 @@ release work.
 | Area | Remaining work |
 | --- | --- |
 | Interface acceptance | Final owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
-| Durable public workflow | Decide and verify whether the hosted public demonstration should connect to PostgreSQL rather than remain in memory mode by default. |
 | Database hardening | Review migration table access, add covering indexes for workflow event foreign keys, and optimize row level security policy evaluation. |
-| Release verification | Hosted acceptance and final submission safeguards. |
+| Release verification | Continued hosted acceptance and final submission safeguards. |
 | Submission safeguards | Final repository review, main protection, and required checks. |
 
 The presence of a table, adapter, workflow file, or test tool is not
@@ -123,27 +127,21 @@ evidence. Reviewers do not need warehouse credentials.
 
 ## Verification recorded
 
-The latest verified checkpoint is `2ac9cb3`, “Record October 15 technical
-verification.” At that checkpoint, the local quality gates, live Supabase
-authorization and atomic persistence checks, frontend contract tests, browser
-tests, dependency audits, and Docker image build completed successfully.
+The latest verified checkpoint is `0b4ea47`, “Check normalized hosted
+database settings.” At that checkpoint, the local quality gates and browser
+suite passed, and the manually triggered GitHub Quality and Frontend workflows
+passed.
 
 | Check | Recorded result |
 | --- | --- |
-| Python test suite | 113 passed. |
-| PostgreSQL atomic, authorization, and persistence tests | 16 passed. |
-| Frontend contract tests | 6 passed. |
-| Explorer bridge, contract, event, and query navigation tests | 24 passed. |
+| Python test suite | 120 passed. |
 | Ruff format and lint | Passed. |
-| Pyright | Zero errors and zero warnings. |
-| Dependency audits | Zero vulnerabilities reported in the inspected application and frontend dependency sets. |
-| Live database authentication | Passed with client certificate and hostname verification. |
-| Restricted runtime role | Application isolation, row level security isolation, cross session insertion denial, metadata access denial, and audit mutation privilege denial were verified. |
-| Atomic persistence | Proposal and transition operations commit their event and state change together or roll back together. |
-| Concurrent transition safety | A competing rejection prevents a later approval from using stale state. |
-| Docker image build | Passed; image digest `sha256:347d1c9b0aafea683db76387734ebc89ee842fa38421a4bab4ebdf378f775695`. |
+| Pyright | Zero errors, warnings, and informations. |
+| Browser tests | 7 passed. |
 | GitHub Quality workflow | Python contracts, frontend build, browser behavior, and dependency checks passed. |
-| GitHub CodeQL workflow | Python and JavaScript TypeScript analysis passed. |
+| Hosted runtime fallback | A missing Streamlit secrets file selects the in-memory demonstration store rather than raising an error. |
+| Hosted PostgreSQL selection | Restricted `BOND_DB_HOST`, `BOND_DB_USER`, and `BOND_DB_PASSWORD` settings select PostgreSQL mode. |
+| Earlier live database verification | Authentication, restricted-role isolation, atomic persistence, recovery, and session isolation checks passed at the recorded October 15 checkpoint. |
 
 These results describe the verified checkpoint, not a claim that every
 future commit has passed. Inspect GitHub Actions for current workflow
@@ -175,11 +173,11 @@ A workflow event and its resulting recommendation state are saved in one
 atomic transaction. If that transaction fails, neither the event nor the
 state change remains.
 
-The public interface uses an in memory demonstration store by default. The
-PostgreSQL workflow repository, migrations, restricted role, and session
-scoped row level security are implemented. Hosted PostgreSQL mode remains
-separate work until its live connection, rollback behavior, and session
-isolation are verified.
+The public interface uses an in-memory demonstration store when hosted
+PostgreSQL settings are absent. When the restricted `BOND_DB_*` settings are
+supplied, it selects the PostgreSQL workflow repository. The PostgreSQL
+migrations, restricted role, and session scoped row level security are
+implemented and were verified in the recorded live database checks.
 
 See [the phase three scope record](docs/PHASE_THREE.md),
 [the phase three verification record](docs/PHASE_THREE_VERIFICATION.md),
@@ -239,7 +237,8 @@ uv run python scripts/check_secrets.py
 ```
 
 See [local development](docs/LOCAL_DEVELOPMENT.md) for additional
-instructions and [persistence](docs/PERSISTENCE.md) for explicit database
+instructions, [the reviewer walkthrough](docs/REVIEWER_WALKTHROUGH.md) for a
+guided review, and [persistence](docs/PERSISTENCE.md) for explicit database
 operator commands. Operator credentials do not belong in the public
 interface.
 
@@ -262,6 +261,7 @@ BOND does not claim that every connection is encrypted.
 
 | Record | Contents |
 | --- | --- |
+| [Reviewer walkthrough](docs/REVIEWER_WALKTHROUGH.md) | Guided hosted, local, API, test, and security review. |
 | [Project charter](docs/PROJECT.md) | Purpose, scope, and product boundaries. |
 | [Architecture](docs/ARCHITECTURE.md) | Layer responsibilities and integration boundaries. |
 | [Design standards](docs/DESIGN.md) | Tokens, typography, motion, and accessibility expectations. |

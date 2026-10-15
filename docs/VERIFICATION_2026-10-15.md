@@ -1,17 +1,18 @@
 # Verification record: October 15, 2026
 
-This record captures the technical and hosted verification completed after commit
-`9d87862`. Owner visual acceptance remains a separate later review.
+This record captures the technical and hosted verification completed after
+commit `9d87862`, followed by the hosted-runtime repair completed at commit
+`0b4ea47`. Owner visual acceptance remains a separate later review.
 
 ## Local quality gates
 
 | Check | Result |
 | --- | --- |
-| Python tests | 113 passed, with one recorded FastAPI test client deprecation warning. |
-| Ruff format | 57 files already formatted. |
+| Python tests | 120 passed at commit `0b4ea47`, with one recorded FastAPI test client deprecation warning. |
+| Ruff format | All inspected files formatted. |
 | Ruff lint | All checks passed. |
 | Pyright | Zero errors, warnings, and informations. |
-| Focused application, workflow, and API tests | 26 passed in 0.47 seconds. |
+| Browser tests | 7 passed. |
 
 ## Live Supabase verification
 
@@ -42,6 +43,7 @@ tables, no public or API role table grants, and 15 grants for the restricted
 | Frontend contract tests | 6 passed. |
 | Production dependency audit | Zero vulnerabilities reported. |
 | Explorer bridge, contract, event, and query navigation tests | 24 passed. |
+| Browser suite | 7 passed, including rendering, keyboard selection, Python inspection bridge, native fallback, narrow catalog containment, scoped accessibility, query filtering, and the simulated assurance workflow. |
 | Accessibility implementation | Focus visible styles, reduced motion handling, semantic landmarks, live status regions, and labeled controls are present. |
 
 ## Container and performance verification
@@ -51,13 +53,13 @@ tables, no public or API role table grants, and 15 grants for the restricted
 | Docker image build | Passed. |
 | Image digest | `sha256:347d1c9b0aafea683db76387734ebc89ee842fa38421a4bab4ebdf378f775695`. |
 | Image size | 833,350,091 bytes. |
-| Focused test duration | 0.47 seconds for 26 tests. |
+| Focused test duration | 0.47 seconds for 26 tests at the earlier recorded checkpoint. |
 
 ## Hosted PostgreSQL verification
 
 Commit `6686c07` enabled the hosted Streamlit application to select durable
 PostgreSQL workflow storage when restricted `BOND_DB_*` settings are supplied.
-Without those settings, it retains the in memory demonstration mode.
+Without those settings, it retains the in-memory demonstration mode.
 
 The hosted demonstration was verified in private browser sessions:
 
@@ -75,6 +77,25 @@ The hosted demonstration was verified in private browser sessions:
 The database contained distinct session identifiers for the completed and
 separate proposed workflows. This confirms durable storage with demonstration
 session isolation.
+
+## Hosted runtime repair
+
+A later hosted-runtime change exposed a regression when no local Streamlit
+secrets file existed: reading `st.secrets` raised
+`StreamlitSecretNotFoundError` before the application could select its
+in-memory fallback.
+
+The following repairs were made and verified:
+
+| Commit | Repair |
+| --- | --- |
+| `4fd4f3a` | Catch `StreamlitSecretNotFoundError`, supply an empty settings mapping, and retain memory mode when no hosted database settings exist. |
+| `0c8cb50` | Normalize `BOND_DB_*` setting keys to the `host`, `user`, and `password` fields expected by `DatabaseSettings`. |
+| `0b4ea47` | Check the normalized required settings so PostgreSQL mode is selected only when host, user, and password are all supplied. |
+
+At commit `0b4ea47`, 120 Python tests, Ruff, Pyright, and all 7 browser tests
+passed locally. The manually triggered GitHub Quality workflow and Frontend
+build and browser behavior workflow both passed.
 
 ## Phase status
 

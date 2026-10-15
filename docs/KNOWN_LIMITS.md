@@ -10,18 +10,23 @@ database credentials.
 ## Workflow
 
 The recommendation, approval, simulated execution, verification, and audit
-history workflow is implemented for synthetic evidence. Its public interface
-uses an in memory demonstration store unless PostgreSQL mode is explicitly
-selected.
+history workflow is implemented for synthetic evidence.
 
-The PostgreSQL workflow migration is applied and verified. The restricted
-runtime role and public hosted session isolation remain deployment work.
+When restricted `BOND_DB_HOST`, `BOND_DB_USER`, and `BOND_DB_PASSWORD`
+settings are supplied, the hosted Streamlit application selects PostgreSQL
+workflow storage. Without those settings, it uses an in-memory demonstration
+store. A missing Streamlit secrets file is handled as memory mode rather than
+raising an error.
+
+The PostgreSQL workflow migration, restricted runtime role, hosted session
+isolation, atomic persistence, and recovery behavior were verified in the
+recorded live database checks.
 
 ## Security
 
-The restricted runtime role and its allowed operations remain to be created
-and tested before deployment. Row security being enabled does not establish
-that privileged operator reads are isolated.
+Row level security and restricted-role checks provide verification evidence,
+not a security certification. Privileged operator access and operational
+monitoring remain separate concerns.
 
 The client database connection passed certificate and hostname verification.
 The separate pooler to PostgreSQL link was not reported as TLS. Do not describe
@@ -34,14 +39,14 @@ the Streamlit application. Its inspection bridge, keyboard interaction,
 native fallback, visible label pointer interaction, narrow catalog
 containment, and scoped automated accessibility scan passed browser tests.
 
-Owner visual review of the phase two interface is pending. The browser scan
+Owner visual review of the interface remains pending. The browser scan
 does not establish full application accessibility or every responsive layout.
 
 ## Automated checks
 
-The recorded foundation run passed 57 tests. AppTest checks execution, not
-rendered browser accessibility. The local disclosure guard is a small scoped
-check, not a comprehensive secret scanner.
+The current recorded Python suite passes 120 tests. AppTest checks execution,
+not rendered browser accessibility. The local disclosure guard is a small
+scoped check, not a comprehensive secret scanner.
 
 The dependency audit reported no known vulnerabilities at the recorded run.
 This is not a security certification.
@@ -58,9 +63,9 @@ separate because it includes the editable local package.
 
 ## Delivery
 
-Docker configuration exists but its build has not been verified.
-GitHub workflow files exist but their execution results must be checked after
-push. Streamlit Community Cloud deployment is pending.
+Docker configuration exists and its build passed in the recorded verification.
+GitHub Quality and Frontend workflows passed in the manually triggered run for
+commit `0b4ea47`.
 
 Free hosting may sleep, pause, or impose resource limits. No continuous
 availability or production capacity claim has been established.
