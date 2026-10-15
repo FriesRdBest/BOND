@@ -51,8 +51,8 @@ test("the catalog completes a simulated assurance workflow", async ({ page }) =>
 
   await page.getByText("Audit history").click();
 
-  await expect(page.getByText("recommendation_created")).toBeAttached();
-  await expect(page.getByText("approval_granted")).toBeAttached();
-  await expect(page.getByText("simulated_execution_recorded")).toBeAttached();
-  await expect(page.getByText("verification_passed")).toBeAttached();
+  await expect(page.getByText("recommendation_created").first()).toBeAttached();
+  await expect(page.getByText("approval_granted").first()).toBeAttached();
+  await expect(page.getByText("simulated_execution_recorded").first()).toBeAttached();
+  await expect(page.getByText("verification_passed").first()).toBeAttached();
 });
