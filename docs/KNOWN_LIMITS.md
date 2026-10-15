@@ -25,10 +25,13 @@ every connection as encrypted.
 
 ## Interface
 
-The current native Streamlit shell is a foundation. Purposeful React and
-TypeScript components remain phase two work. One desktop Scorecard screenshot
-has been reviewed. Full responsive, keyboard, screen reader, and reduced
-motion behavior remain to be verified.
+The React and TypeScript evidence explorer is implemented and packaged with
+the Streamlit application. Its inspection bridge, keyboard interaction,
+native fallback, visible label pointer interaction, narrow catalog
+containment, and scoped automated accessibility scan passed browser tests.
+
+Owner visual review of the phase two interface is pending. The browser scan
+does not establish full application accessibility or every responsive layout.
 
 ## Automated checks
 
@@ -45,8 +48,9 @@ The test suite currently emits a Starlette TestClient deprecation warning.
 Resolve it through a reviewed compatible dependency or test integration change.
 Do not hide it with a broad warning filter.
 
-The dedicated dependency audit export should be improved to use hashes where
-supported. Preserve the separate deployment export requirements.
+The dedicated application audit now uses hashed requirements and completed
+successfully in the recorded phase two check. The deployment export remains
+separate because it includes the editable local package.
 
 ## Delivery
 

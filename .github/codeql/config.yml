@@ -1,0 +1,4 @@
+name: BOND source analysis
+paths-ignore:
+  - src/bond/data/web/**
+  - frontend/evidence/node_modules/**

@@ -1,0 +1,7 @@
+[project]
+name = "bond"
+version = "0.1.0"
+
+[[tool.streamlit.component.components]]
+name = "evidence_explorer"
+asset_dir = "data/web/evidence"

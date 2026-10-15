@@ -63,7 +63,7 @@ distinguish implemented behavior from the remaining workflow.
 | Capability | Current state |
 | --- | --- |
 | Console navigation | Three primary consoles and a supporting technical view. |
-| Catalog inspection | Search, ownership filtering, service detail, dependencies, and rule explanations. |
+| Catalog inspection | Search, ownership and result filters, React evidence exploration, native fallback, dependencies, and rule explanations. |
 | Maturity evaluation | Three deterministic, equally weighted rules with missing evidence reported separately. |
 | Warehouse demonstration | Fixed synthetic query samples, nearest rank P95, and Decimal credit rate calculations. |
 | Shared backend services | Domain evaluation reused by the Streamlit interface and read only FastAPI endpoints. |
@@ -75,7 +75,7 @@ distinguish implemented behavior from the remaining workflow.
 
 | Area | Remaining work |
 | --- | --- |
-| Interface refinement | Purposeful React and TypeScript evidence interaction, richer console context, and broader responsive review. |
+| Interface acceptance | Owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
 | Assurance journey | Recommendations, authorized approval, simulated execution, and independent verification. |
 | Durable workflow | Session isolation, persisted action state, and an inspectable event history connected to the interface. |
 | Runtime security | Restricted database credentials, tested permissions, and application access policies. |
@@ -103,9 +103,9 @@ Python owns application and domain logic. Pydantic validates contracts.
 PostgreSQL provides the durable storage foundation. SQL migrations are
 packaged with the application and checked against recorded SHA256 values.
 
-React, TypeScript, and CSS are the selected tools for the next interface
-phase. They are not presented as completed frontend implementation in
-this foundation release.
+React, TypeScript, and CSS implement the evidence explorer through Streamlit
+V2. Its production assets ship inside the Python package, with source and
+output checksums. The hosted interface requires no separate frontend server.
 
 The optional Snowflake integration boundary defaults to synthetic
 evidence. Reviewers do not need warehouse credentials.
@@ -133,6 +133,29 @@ remains recorded rather than suppressed.
 
 Automated execution tests do not establish complete accessibility,
 production capacity, or security certification.
+
+## Phase two local verification
+
+The recorded phase two run passed 86 Python tests, six frontend contract
+tests, and six real Chromium browser tests. Python and frontend source type
+checks and lint passed.
+
+Browser checks exercised actual rendering, keyboard selection, the Python
+inspection bridge, native fallback, visible label pointer activation, narrow
+catalog containment, scoped component accessibility, and query filtering.
+
+A clean frontend installation with dependency lifecycle scripts disabled
+rebuilt successfully. The frontend audit reported zero vulnerabilities.
+The hashed application dependency audit reported no known vulnerabilities.
+
+Wheel verification confirmed registration metadata, required assets, output
+checksums, and current source provenance.
+
+These are recorded local results. The updated GitHub jobs, owner visual
+approval, and hosted acceptance are separate gates.
+
+See [the phase two verification record](docs/PHASE_TWO_VERIFICATION.md)
+for scope and remaining limitations.
 
 ## Run locally
 

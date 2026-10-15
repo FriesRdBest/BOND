@@ -3,14 +3,14 @@ requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bond-assurance"
+name = "bond"
 version = "0.1.0"
 description = "An independent engineering assurance workbench."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = "Apache-2.0"
 dependencies = [
-    "streamlit>=1.45,<2",
+    "streamlit>=1.66,<2",
     "fastapi>=0.115,<1",
     "uvicorn>=0.34,<1",
     "pydantic>=2.10,<3",

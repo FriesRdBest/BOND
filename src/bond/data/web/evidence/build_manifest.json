@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "component": "bond_evidence_explorer",
+  "sources": {
+    "frontend/evidence/eslint.config.mjs": "1e188a219875bbb828aa702a484bc54c05a91755e9a7db7f0cc16184745dc547",
+    "frontend/evidence/package-lock.json": "22720bdd5376214c57183c5385a0a1ed8d45d8e0206db6462a383edc8676d14a",
+    "frontend/evidence/package.json": "c51c3d495bb1adee91e731d0401b2f8684932a9809276387c2d5e13214d6b7fc",
+    "frontend/evidence/scripts/build.mjs": "f76600890ddecec67277dc1d525252d5d7998d02e388f96f811fbc164587afe7",
+    "frontend/evidence/src/Explorer.tsx": "1f47fa52d8e9eeeb746c568e437b76080cffda2d504bee477f499376bea096fa",
+    "frontend/evidence/src/assets.d.ts": "e823230a23013a1bc710f7eefc642094596c3f673bfadc103d617b1067396b07",
+    "frontend/evidence/src/contracts.ts": "135ec05c6120a37c62dbd81f08a10b0f936f4b09b2123a8dcdf7360e505ac9f8",
+    "frontend/evidence/src/index.tsx": "cf4dd4d5317a6fecf45b26272bf9f48770a8e3945fbe9bb26284b8ff2a5ab8a3",
+    "frontend/evidence/src/styles.css": "2582b9599f9690570f07d6434a140a13d27e9b5b0b6c7eb9b22547200cb475cb",
+    "frontend/evidence/tsconfig.json": "055d38849dc9b3dd8b212353f4bbae77c85e4aac5f9e456692bc6bdf980ae815",
+    "src/bond/data/design_tokens.json": "554f9e2c4349fea9916af1a8a74d7c9ea4823801465bb0a8c22926e621b4bd8f"
+  },
+  "outputs": {
+    "evidence.css": "5692932f573e605c21301cf7aa497f09d7bdb2983f3e53c3d83c14ef7efd1a17",
+    "evidence.js": "8f26980bc11459db147daca5b50e5783d6f3ab56496db8597593c139b9ac2ba3",
+    "evidence.js.LEGAL.txt": "cd7dec749043f2074e9799163f9c46a6ba714fd4889f07150cc1165c816ea1d3"
+  }
+}

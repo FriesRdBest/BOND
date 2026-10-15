@@ -39,14 +39,14 @@ second independent palette.
 
 | Check | Status |
 | --- | --- |
-| Existing foundation tests remain passing | Pending |
-| Python formatting, lint, and strict types | Pending |
-| Frontend strict types, lint, tests, and production build | Pending |
-| Component messages validated against known services | Pending |
-| Production assets included in the Python package | Pending |
-| Native inspection fallback works | Pending |
-| Browser keyboard and automated accessibility checks | Pending |
-| Desktop and narrow viewport containment | Pending |
+| Existing foundation tests remain passing | Passed in the 86 test suite |
+| Python formatting, lint, and strict types | Passed |
+| Frontend strict types, lint, tests, and production build | Passed |
+| Component messages validated against known services | Passed contract and browser checks |
+| Production assets included in the Python package | Passed with metadata and provenance checks |
+| Native inspection fallback works | Passed keyboard and pointer checks |
+| Browser keyboard and automated accessibility checks | Passed for the documented component scope |
+| Desktop and narrow viewport containment | Catalog browser check passed; broader visual review pending |
 | GitHub workflow results inspected | Pending |
 | Owner visual review at the end of the phase | Pending |
 
