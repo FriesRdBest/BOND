@@ -12,11 +12,7 @@ from bond.repositories.postgres_workflow import PostgresWorkflowRepository
 MEMORY_MODE = "memory"
 POSTGRES_MODE = "postgres"
 
-REQUIRED_DATABASE_SETTINGS = (
-    "BOND_DB_HOST",
-    "BOND_DB_USER",
-    "BOND_DB_PASSWORD",
-)
+REQUIRED_DATABASE_SETTINGS = frozenset({"host", "user", "password"})
 
 
 class WorkflowRuntime:
@@ -60,7 +56,7 @@ def build_hosted_workflow_runtime(source: Mapping[str, object]) -> WorkflowRunti
         if key.startswith("BOND_DB_") and isinstance(value, str)
     }
 
-    if all(key in database_settings for key in REQUIRED_DATABASE_SETTINGS):
+    if REQUIRED_DATABASE_SETTINGS.issubset(database_settings):
         return build_workflow_runtime(
             POSTGRES_MODE,
             database_settings=database_settings,
