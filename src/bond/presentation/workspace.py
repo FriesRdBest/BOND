@@ -22,7 +22,7 @@ from bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer
 from bond.presentation.refinements import apply_refinements
 from bond.presentation.styles import apply_styles, load_tokens
 from bond.repositories.fixtures import FixtureCatalogRepository
-from bond.workflow_runtime import MEMORY_MODE, build_workflow_runtime
+from bond.workflow_runtime import build_hosted_workflow_runtime
 
 PAGES = (
     "Scorecard Console",
@@ -36,7 +36,7 @@ WORKFLOW_SESSION_KEY = "assurance_session_id"
 
 def _workflow() -> AssuranceWorkflow:
     if WORKFLOW_SESSION_KEY not in st.session_state:
-        runtime = build_workflow_runtime(MEMORY_MODE)
+        runtime = build_hosted_workflow_runtime(st.secrets)
         session_id = uuid4()
         runtime.open_session(session_id)
         st.session_state[WORKFLOW_SESSION_KEY] = session_id
@@ -446,7 +446,6 @@ def render_catalog(snapshot: OrganizationSnapshot) -> None:
 
     if not matching:
         return
-
     names = {item.service.id: item.service.name for item in matching}
     selected_key = NATIVE_SELECTION_KEY
     requested = st.session_state.pop("catalog_requested_service", None)
@@ -579,21 +578,22 @@ def render_notes() -> None:
 
     st.subheader("Current operating mode")
     st.write(
-        "The interface and API use packaged synthetic fixtures. PostgreSQL schema "
-        "and repository operations were verified separately through operator commands. "
+        "The interface uses packaged synthetic evidence. When restricted PostgreSQL "
+        "settings are supplied, workflow state is durable and session isolated. "
+        "Without those settings, the interface uses an in memory demonstration store. "
         "The public interface does not use administrative database credentials."
     )
 
     st.subheader("Architecture")
     st.code(
-        "Streamlit workspace and React evidence explorer\n"
-        "                    |\n"
-        " Shared application services / FastAPI interface\n"
-        "                    |\n"
-        "       Typed contracts and domain rules\n"
-        "                    |\n"
-        "           Repository interfaces\n"
-        "                    |\n"
+        "Streamlit workspace and React evidence explorer\\n"
+        "                    |\\n"
+        " Shared application services / FastAPI interface\\n"
+        "                    |\\n"
+        "       Typed contracts and domain rules\\n"
+        "                    |\\n"
+        "           Repository interfaces\\n"
+        "                    |\\n"
         "     Fixture adapter / PostgreSQL adapter",
         language=None,
     )
@@ -609,8 +609,8 @@ def render_notes() -> None:
         st.write(
             "The recorded client database connection passed certificate and hostname "
             "verification. The separate pooler to PostgreSQL link was not reported "
-            "as TLS. Restricted runtime access and public session isolation remain "
-            "to be implemented and tested."
+            "as TLS. Workflow access uses restricted runtime settings when supplied; "
+            "administrative database credentials are not used."
         )
         st.write(
             "The React component can request inspection of a known service. "
