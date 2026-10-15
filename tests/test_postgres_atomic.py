@@ -129,7 +129,13 @@ def recommendation() -> Recommendation:
 def test_atomic_operations_share_one_connection(
     connection: FakeConnection,
 ) -> None:
-    repository = PostgresWorkflowRepository(DatabaseSettings())
+    repository = PostgresWorkflowRepository(
+        DatabaseSettings(
+            host="database.invalid",
+            user="bond_test",
+            password="dummy-test-only",
+        )
+    )
     item = recommendation()
 
     with repository.atomic(item.session_id):
@@ -163,7 +169,13 @@ def test_atomic_failure_propagates_without_commit(
     connection: FakeConnection,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repository = PostgresWorkflowRepository(DatabaseSettings())
+    repository = PostgresWorkflowRepository(
+        DatabaseSettings(
+            host="database.invalid",
+            user="bond_test",
+            password="dummy-test-only",
+        )
+    )
     item = recommendation()
 
     with pytest.raises(RuntimeError, match="Injected failure"):
