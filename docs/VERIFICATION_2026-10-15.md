@@ -1,8 +1,7 @@
 # Verification record: October 15, 2026
 
-This record captures the technical verification completed after commit
-`9d87862`. It does not include owner visual acceptance, which remains a
-separate later review.
+This record captures the technical and hosted verification completed after commit
+`9d87862`. Owner visual acceptance remains a separate later review.
 
 ## Local quality gates
 
@@ -54,8 +53,44 @@ tables, no public or API role table grants, and 15 grants for the restricted
 | Image size | 833,350,091 bytes. |
 | Focused test duration | 0.47 seconds for 26 tests. |
 
+## Hosted PostgreSQL verification
+
+Commit `6686c07` enabled the hosted Streamlit application to select durable
+PostgreSQL workflow storage when restricted `BOND_DB_*` settings are supplied.
+Without those settings, it retains the in memory demonstration mode.
+
+The hosted demonstration was verified in private browser sessions:
+
+| Check | Result |
+| --- | --- |
+| Hosted application startup | Passed after a transient Streamlit dependency download failure was resolved by rebooting the application. |
+| Restricted runtime credentials | Configured privately in Streamlit secrets; not shared with reviewers. |
+| Complete workflow | A recommendation was proposed, approved, executed as a simulated action, and verified successfully. |
+| Audit history | Proposal, approval, simulated execution, and verification events were recorded. |
+| PostgreSQL durability | The completed workflow and its events remained present in the `bond.improvements` and `bond.workflow_events` tables. |
+| Refresh isolation | A hard refresh began a new demonstration session and did not display the prior session’s workflow. |
+| Cross session isolation | A second private browser session could not see the first session’s recommendation or audit history. |
+| Separate workflow state | Each session retained its own recommendation state and event history. |
+
+The database contained distinct session identifiers for the completed and
+separate proposed workflows. This confirms durable storage with demonstration
+session isolation.
+
+## Phase status
+
+With hosted PostgreSQL durability and session isolation verified, phases one
+through four are complete. Phase five is complete for the current technical
+submission: the Streamlit application is deployed, restricted runtime
+credentials are configured, a fresh hosted reviewer session was tested, the
+durable PostgreSQL mode decision was implemented and verified, documentation
+and community standards are present, and main protection and required checks
+are enabled.
+
+Future visual upgrades are enhancement work, not a blocker for the current
+submission.
+
 ## Boundary
 
-These results verify the inspected local and live technical paths. They do not
-establish production capacity, continuous hosted availability, complete
-accessibility compliance, or owner visual acceptance.
+These results verify the inspected local, live database, and hosted technical
+paths. They do not establish production capacity, continuous hosted
+availability, complete accessibility conformance, or owner visual acceptance.
