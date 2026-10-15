@@ -1,7 +1,7 @@
 """Controlled recommendation, approval, execution, and verification policy."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -10,6 +10,7 @@ from bond.application_workflow import AssuranceWorkflow
 from bond.domain.models import EvidenceSource, Service
 from bond.domain.workflow import (
     ExecutionRecord,
+    Recommendation,
     RecommendationDraft,
     VerificationRecord,
     WorkflowDecision,
@@ -328,3 +329,50 @@ def test_memory_transaction_restores_state_after_nested_failure() -> None:
         assert application.recommendations(session_id) == (retained,)
 
     assert application.recommendations(session_id) == (retained,)
+
+
+def test_transition_rechecks_state_inside_transaction() -> None:
+    class CompetingRepository(InMemoryWorkflowRepository):
+        def get_recommendation(
+            self,
+            improvement_id: UUID,
+            session_id: UUID,
+        ) -> Recommendation | None:
+            recommendation = super().get_recommendation(improvement_id, session_id)
+            if recommendation is not None and self._reads >= 1:
+                rejected = recommendation.model_copy(
+                    update={
+                        "status": WorkflowStatus.REJECTED,
+                        "updated_at": recommendation.updated_at,
+                    }
+                )
+                self.update_recommendation(rejected)
+                return rejected
+            self._reads += 1
+            return recommendation
+
+        def __init__(self) -> None:
+            super().__init__()
+            self._reads = 0
+
+    repository = CompetingRepository()
+    application = AssuranceWorkflow(StaticCatalog(service()), repository)
+    session_id = uuid4()
+    recommendation = application.propose(session_id, draft(), uuid4())
+    repository._reads = 0
+
+    with pytest.raises(WorkflowTransitionError, match="cannot move"):
+        application.approve(
+            recommendation.id,
+            session_id,
+            WorkflowDecision(
+                actor="Platform Owner",
+                reason="Attempted approval after a competing rejection.",
+                request_id=uuid4(),
+            ),
+        )
+
+    current = application.recommendation(recommendation.id, session_id)
+    assert current is not None
+    assert current.status is WorkflowStatus.REJECTED
+    assert len(application.history(recommendation.id, session_id)) == 1

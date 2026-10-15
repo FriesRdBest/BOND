@@ -67,6 +67,14 @@ class AssuranceWorkflow:
         request_id: UUID,
     ) -> Recommendation | None:
         with self._workflows.atomic(recommendation.session_id):
+            current = self._workflows.get_recommendation(
+                recommendation.id,
+                recommendation.session_id,
+            )
+            if current is None:
+                raise ValueError("The recommendation does not exist in this session.")
+            recommendation = current
+
             existing = self._workflows.find_event(
                 recommendation.id,
                 recommendation.session_id,

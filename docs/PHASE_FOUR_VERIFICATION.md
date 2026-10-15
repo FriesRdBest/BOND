@@ -79,3 +79,26 @@ deferred until the end of the phase.
 
 These results are scoped evidence, not a security certification or a
 claim of production readiness.
+
+## Atomic persistence and recovery
+
+**Status:** Implemented and locally verified.
+
+The workflow repository contract now provides an `atomic` boundary. Proposal creation commits the recommendation and creation event together; approval, rejection, execution, and verification commit the workflow event and resulting state change together.
+
+- Memory storage serializes participating operations and restores its prior state after a failure.
+- PostgreSQL storage shares one connection and transaction across participating reads and writes.
+- PostgreSQL uses a transaction-scoped advisory lock keyed by session, so competing workflow operations serialize without leaving a session-level lock behind.
+- A failed proposal or transition rolls back both its audit event and recommendation state.
+- A repeated request identifier returns the original result for the same operation and rejects reuse for a different operation.
+- Proposals must use the rule version represented by the evaluated evidence.
+
+### Concurrent transition safety
+
+Workflow transitions re-read the recommendation after acquiring the session transaction lock. A competing state change is therefore evaluated using fresh state, preventing an approval from overwriting a rejection that occurred after the caller initially loaded the recommendation.
+
+**Local verification:** 113 tests passed; Ruff format, Ruff lint, Pyright, and the local disclosure guard reported no errors.
+
+**Checkpoint:** `3024b36` introduced atomic persistence; the subsequent concurrency repair adds fresh state validation inside each transition.
+
+**Database scope:** No schema migration or data change was made by these checkpoints. PostgreSQL transaction behavior is exercised through the repository adapter and mocked connection tests; live Supabase verification remains a separate phase-four step.
