@@ -55,7 +55,7 @@ def build_hosted_workflow_runtime(source: Mapping[str, object]) -> WorkflowRunti
     """Select durable PostgreSQL mode only when restricted settings are supplied."""
 
     database_settings = {
-        key: value
+        key.removeprefix("BOND_DB_").lower(): value
         for key, value in source.items()
         if key.startswith("BOND_DB_") and isinstance(value, str)
     }
