@@ -3,12 +3,13 @@
 ## Engineering assurance, grounded in evidence
 
 BOND connects service ownership, maturity rules, and warehouse telemetry
-so an engineering finding can be understood, assigned, and eventually
-resolved through a controlled improvement workflow.
+so an engineering finding can be understood, assigned, approved, acted on
+in a clearly simulated demonstration, verified, and preserved in an
+inspectable audit history.
 
-The foundation is working. The complete journey from recommendation
-through approval, simulated action, and independent verification is
-under development.
+The hosted demonstration implements the complete evidence to verification
+journey. Recommendations are isolated by demonstration session, workflow
+requests use idempotency identifiers, and execution is explicitly simulated.
 
 [Explore the hosted demonstration](https://b-o-n-d.streamlit.app/)
 · [Inspect the architecture](docs/ARCHITECTURE.md)
@@ -35,7 +36,7 @@ focused path from evidence to an accountable result.
 | Surface | What it explains |
 | --- | --- |
 | Scorecard Console | Organization maturity, evidence coverage, ownership gaps, and failing rules. |
-| Catalog Repository | Service identity, dependencies, ownership, and the evidence behind individual rule results. |
+| Catalog Repository | Service identity, dependencies, ownership, evidence, recommendations, workflow state, and audit history. |
 | Pipeline Laboratory | A synthetic warehouse window with credit consumption, query samples, and explicit latency calculations. |
 | Engineering Notes | Architecture, measurement boundaries, current mode, and implementation limits. |
 
@@ -48,6 +49,11 @@ Open the Catalog Repository and inspect Billing Export. Its fixture
 deliberately contains an ownership gap and a critical vulnerability,
 making the relationship between evidence and score easy to inspect.
 
+In the native service inspection area, propose a recommendation from the
+`ownership_assigned` finding. Approve it, record the simulated execution,
+and verify the outcome. Expand **Audit history** to inspect the recorded
+recommendation, approval, simulated action, and verification events.
+
 Inspect Policy Evaluator to see missing vulnerability evidence treated
 as unknown rather than passing.
 
@@ -56,7 +62,8 @@ latency summary. Credits are warehouse consumption units, not an
 asserted monetary saving.
 
 Finish with Engineering Notes and the linked source files to
-distinguish implemented behavior from the remaining workflow.
+distinguish implemented behavior from the remaining hardening and
+release work.
 
 ## What works today
 
@@ -65,21 +72,22 @@ distinguish implemented behavior from the remaining workflow.
 | Console navigation | Three primary consoles and a supporting technical view. |
 | Catalog inspection | Search, ownership and result filters, React evidence exploration, native fallback, dependencies, and rule explanations. |
 | Maturity evaluation | Three deterministic, equally weighted rules with missing evidence reported separately. |
+| Assurance workflow | Recommendation proposal, approval or rejection, simulated execution, independent verification, idempotent requests, session isolation, and audit history. |
+| Workflow interfaces | Streamlit workflow controls and separately runnable FastAPI endpoints for the workflow journey. |
 | Warehouse demonstration | Fixed synthetic query samples, nearest rank P95, and Decimal credit rate calculations. |
-| Shared backend services | Domain evaluation reused by the Streamlit interface and read only FastAPI endpoints. |
-| PostgreSQL foundation | Versioned schema, migration checksums, synthetic catalog seed, and verified repository reads. |
-| Application safety | The current interface and API use fixtures, not administrative database access. |
-| Automated verification | Python formatting, lint, strict source type checking, domain tests, API tests, and Streamlit execution tests. |
+| PostgreSQL foundation | Versioned schema, migration checksums, synthetic catalog seed, workflow migrations, and verified repository operations. |
+| Application safety | The public interface uses fixtures and an in memory demonstration store by default; it does not use administrative database access. |
+| Automated verification | Python formatting, lint, strict source type checking, domain tests, API tests, Streamlit execution tests, frontend contract tests, and real browser tests. |
 
-## What is still being built
+## What remains for release
 
 | Area | Remaining work |
 | --- | --- |
-| Interface acceptance | Owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
-| Assurance journey | Recommendations, authorized approval, simulated execution, and independent verification. |
-| Durable workflow | Session isolation, persisted action state, and an inspectable event history connected to the interface. |
-| Runtime security | Restricted database credentials, tested permissions, and application access policies. |
-| Release verification | Browser accessibility checks, recovery tests, performance measurements, container validation, and hosted acceptance. |
+| Interface acceptance | Final owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
+| Runtime security | Restricted database credentials, tested permissions, application access policies, and hosted session isolation. |
+| Durable public workflow | Decide and verify whether the hosted public demonstration should connect to PostgreSQL rather than remain in memory mode by default. |
+| Release verification | Recovery tests, performance measurements, container validation, final accessibility review, and hosted acceptance. |
+| Submission safeguards | Final repository review, main protection, and required checks. |
 
 The presence of a table, adapter, workflow file, or test tool is not
 treated as proof that the corresponding product capability is complete.
@@ -112,31 +120,37 @@ evidence. Reviewers do not need warehouse credentials.
 
 ## Verification recorded
 
-The foundation verification supplied on October 15, 2026 recorded:
+The phase three verification supplied on October 15, 2026 recorded:
 
 | Check | Recorded result |
 | --- | --- |
-| Automated test suite | 57 passed. |
+| Python test suite | 98 passed. |
+| Frontend contract tests | Six passed. |
+| Real Chromium browser tests | Seven passed. |
 | Ruff | Passed. |
 | Pyright | Zero errors and zero warnings. |
-| Application dependency audit | No known vulnerabilities reported in the audited dependency set. |
+| Wheel and component package | Built and verified. |
+| Dependency audits | No findings reported in the inspected application and frontend dependency sets. |
 | Local disclosure guard | Passed; its limited scope is documented. |
-| Local Streamlit health | Passed on port 8501. |
-| Local API health | Passed on port 8000. |
-| PostgreSQL foundation | Initial migration, six synthetic services, adapter lookups, and migration replay verified. |
+| GitHub Quality workflow | Python contracts, frontend build, browser behavior, and dependency checks passed. |
+| GitHub CodeQL workflow | Python and JavaScript TypeScript analysis passed. |
+| PostgreSQL workflow migration | Applied and verified. |
+| Hosted workflow walkthrough | Recommendation, approval, simulated execution, verification, and four audit events completed after application reboot. |
 
-These are recorded local results, not a claim that every later commit
-has passed. Inspect GitHub Actions for current workflow results.
+These are recorded results for the phase three checkpoint, not a claim
+that every later commit has passed. Inspect GitHub Actions for current
+workflow results.
 
-The suite emitted one test client deprecation warning. That warning
+The Python suite emitted one test client deprecation warning. That warning
 remains recorded rather than suppressed.
 
 Automated execution tests do not establish complete accessibility,
-production capacity, or security certification.
+production capacity, security certification, or unrestricted hosted
+availability.
 
 ## Phase three assurance journey
 
-The Catalog Repository now connects evidence findings to a controlled
+The Catalog Repository connects evidence findings to a controlled
 improvement workflow. A reviewer can propose a recommendation from failing or
 missing evidence, approve or reject it, record a simulated execution, verify
 the outcome, and inspect its audit history.
@@ -146,15 +160,16 @@ and events are isolated by demonstration session. Execution is explicitly
 simulated and does not change production infrastructure.
 
 The public interface uses an in memory demonstration store by default. The
-The PostgreSQL workflow repository and migration are implemented, applied,
+PostgreSQL workflow repository and migration are implemented, applied,
 and verified. The public interface remains in memory mode by default until
 restricted runtime credentials and hosted session isolation are configured.
 
-See [the phase three scope record](docs/PHASE_THREE.md).
+See [the phase three scope record](docs/PHASE_THREE.md) and
+[the phase three verification record](docs/PHASE_THREE_VERIFICATION.md).
 
-## Phase two local verification
+## Earlier phase evidence
 
-The recorded phase two run passed 86 Python tests, six frontend contract
+The phase two run passed 86 Python tests, six frontend contract
 tests, and six real Chromium browser tests. Python and frontend source type
 checks and lint passed.
 
@@ -193,7 +208,7 @@ Start the separately runnable API in another terminal.
 uv run uvicorn bond.api:app --host 0.0.0.0 --port 8000
 ```
 
-Open `/docs` on the API service to inspect its read only contracts.
+Open `/docs` on the API service to inspect its contracts.
 
 Run the current automated checks.
 
@@ -235,6 +250,8 @@ BOND does not claim that every connection is encrypted.
 | [Delivery plan](docs/DELIVERY.md) | Five phases and acceptance checks. |
 | [Phase one evidence](docs/PHASE_ONE.md) | Recorded verification and outstanding work. |
 | [Phase two contract](docs/PHASE_TWO.md) | Console refinement and component acceptance requirements. |
+| [Phase three scope](docs/PHASE_THREE.md) | Assurance workflow scope and boundaries. |
+| [Phase three verification](docs/PHASE_THREE_VERIFICATION.md) | Recorded phase three checks and limitations. |
 | [Security](docs/SECURITY.md) | Credential handling and verification expectations. |
 | [Known limits](docs/KNOWN_LIMITS.md) | Incomplete capabilities and maintenance findings. |
 | [Operating plan](docs/OPERATIONS.md) | Hosting, recovery expectations, and the ninety day plan. |
