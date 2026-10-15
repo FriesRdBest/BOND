@@ -4,6 +4,7 @@ from html import escape
 from uuid import uuid4
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from bond.application import CatalogApplication, OrganizationSnapshot, ServiceAssessment
 from bond.application_workflow import AssuranceWorkflow
@@ -36,7 +37,11 @@ WORKFLOW_SESSION_KEY = "assurance_session_id"
 
 def _workflow() -> AssuranceWorkflow:
     if WORKFLOW_SESSION_KEY not in st.session_state:
-        runtime = build_hosted_workflow_runtime(st.secrets)
+        try:
+            hosted_settings = dict(st.secrets)
+        except StreamlitSecretNotFoundError:
+            hosted_settings = {}
+        runtime = build_hosted_workflow_runtime(hosted_settings)
         session_id = uuid4()
         runtime.open_session(session_id)
         st.session_state[WORKFLOW_SESSION_KEY] = session_id
