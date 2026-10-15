@@ -1,77 +1,78 @@
 name: Accessibility report
- description: Report an accessibility barrier in BOND.
- labels: ["accessibility"]
- body:
-   - type: markdown
-     attributes:
-       value: |
-         Thank you for reporting an accessibility barrier. Please describe the affected experience and the assistive technology or interaction method involved.
-   - type: dropdown
-     id: surface
-     attributes:
-       label: Affected surface
-       options:
-         - Scorecard Console
-         - Catalog Repository
-         - Pipeline Laboratory
-         - Engineering Notes
-         - Evidence explorer component
-         - Assurance workflow
-         - FastAPI documentation
-         - Documentation
-         - Other
-     validations:
-       required: true
-   - type: dropdown
-     id: barrier
-     attributes:
-       label: Barrier type
-       options:
-         - Keyboard navigation
-         - Focus visibility
-         - Screen reader announcement
-         - Color or contrast
-         - Text size or readability
-         - Responsive layout
-         - Motion sensitivity
-         - Form control labeling
-         - Other
-     validations:
-       required: true
-   - type: textarea
-     id: expected
-     attributes:
-       label: Expected experience
-       description: Describe how the interface should work for the affected user.
-     validations:
-       required: true
-   - type: textarea
-     id: actual
-     attributes:
-       label: Actual experience
-       description: Describe what happens instead. Include relevant error output with secrets removed.
-     validations:
-       required: true
-   - type: textarea
-     id: reproduction
-     attributes:
-       label: Reproduction steps
-       description: List the exact pages, controls, keyboard actions, or assistive technology steps needed to reproduce the barrier.
-     validations:
-       required: true
-   - type: dropdown
-     id: severity
-     attributes:
-       label: Impact
-       options:
-         - Blocker: a core workflow cannot be completed.
-         - Major: a workflow is difficult or unreliable.
-         - Moderate: some information or control is harder to use.
-         - Minor: the experience can be improved.
-     validations:
-       required: true
-   - type: textarea
-     id: environment
-     attributes:
-       label: Environment
-       description: Include the browser, operating system, screen reader or assistive technology, zoom level, and viewport size when relevant.
+description: Report an accessibility barrier in BOND.
+labels:
+  - accessibility
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an accessibility barrier. Please describe the affected experience and the assistive technology or interaction method involved.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Scorecard Console
+        - Catalog Repository
+        - Pipeline Laboratory
+        - Engineering Notes
+        - Evidence explorer component
+        - Assurance workflow
+        - FastAPI documentation
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: barrier
+    attributes:
+      label: Barrier type
+      options:
+        - Keyboard navigation
+        - Focus visibility
+        - Screen reader announcement
+        - Color or contrast
+        - Text size or readability
+        - Responsive layout
+        - Motion sensitivity
+        - Form control labeling
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected experience
+      description: Describe how the interface should work for the affected user.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual experience
+      description: Describe what happens instead. Include relevant error output with secrets removed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: List the exact pages, controls, keyboard actions, or assistive technology steps needed to reproduce the barrier.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact
+      options:
+        - Blocker: a core workflow cannot be completed.
+        - Major: a workflow is difficult or unreliable.
+        - Moderate: some information or control is harder to use.
+        - Minor: the experience can be improved.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the browser, operating system, screen reader or assistive technology, zoom level, and viewport size when relevant.
