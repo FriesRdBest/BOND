@@ -74,8 +74,11 @@ release work.
 | Maturity evaluation | Three deterministic, equally weighted rules with missing evidence reported separately. |
 | Assurance workflow | Recommendation proposal, approval or rejection, simulated execution, independent verification, idempotent requests, session isolation, and audit history. |
 | Workflow interfaces | Streamlit workflow controls and separately runnable FastAPI endpoints for the workflow journey. |
+| Atomic persistence | Workflow events and recommendation state changes commit together or roll back together in the memory and PostgreSQL adapters. |
+| Workflow recovery | Failed proposals and transitions roll back, repeated requests do not duplicate an operation, and request identifiers cannot be reused for a different operation. |
+| Concurrent transition safety | A transition rechecks recommendation state after acquiring the session transaction lock, preventing an approval from overwriting a competing rejection. |
 | Warehouse demonstration | Fixed synthetic query samples, nearest rank P95, and Decimal credit rate calculations. |
-| PostgreSQL foundation | Versioned schema, migration checksums, synthetic catalog seed, workflow migrations, and verified repository operations. |
+| PostgreSQL foundation | Versioned schema, migration checksums, synthetic catalog seed, workflow migrations, session scoped row level security, and a restricted application role. |
 | Application safety | The public interface uses fixtures and an in memory demonstration store by default; it does not use administrative database access. |
 | Automated verification | Python formatting, lint, strict source type checking, domain tests, API tests, Streamlit execution tests, frontend contract tests, and real browser tests. |
 
@@ -84,9 +87,10 @@ release work.
 | Area | Remaining work |
 | --- | --- |
 | Interface acceptance | Final owner visual review, broader responsive inspection, and hosted acceptance of the implemented interface. |
-| Runtime security | Restricted database credentials, tested permissions, application access policies, and hosted session isolation. |
+| Live database verification | Verify the restricted runtime connection, atomic rollback, retry behavior, concurrent transitions, and hosted session isolation against Supabase. |
 | Durable public workflow | Decide and verify whether the hosted public demonstration should connect to PostgreSQL rather than remain in memory mode by default. |
-| Release verification | Recovery tests, performance measurements, container validation, final accessibility review, and hosted acceptance. |
+| Database hardening | Review migration table access, add covering indexes for workflow event foreign keys, and optimize row level security policy evaluation. |
+| Release verification | Performance measurements, container validation, final accessibility review, and hosted acceptance. |
 | Submission safeguards | Final repository review, main protection, and required checks. |
 
 The presence of a table, adapter, workflow file, or test tool is not
@@ -120,35 +124,38 @@ evidence. Reviewers do not need warehouse credentials.
 
 ## Verification recorded
 
-The phase three verification supplied on October 15, 2026 recorded:
+The latest verified checkpoint is `fc79e97`, “Recheck workflow state within
+atomic transitions.” At that checkpoint, both GitHub workflows completed
+successfully.
 
 | Check | Recorded result |
 | --- | --- |
-| Python test suite | 98 passed. |
-| Frontend contract tests | Six passed. |
-| Real Chromium browser tests | Seven passed. |
-| Ruff | Passed. |
+| Python test suite | 113 passed. |
+| Frontend contract tests | Passed in the Quality workflow. |
+| Real Chromium browser tests | Passed in the Quality workflow. |
+| Ruff format and lint | Passed. |
 | Pyright | Zero errors and zero warnings. |
-| Wheel and component package | Built and verified. |
-| Dependency audits | No findings reported in the inspected application and frontend dependency sets. |
 | Local disclosure guard | Passed; its limited scope is documented. |
+| Dependency audits | No findings reported in the inspected application and frontend dependency sets. |
 | GitHub Quality workflow | Python contracts, frontend build, browser behavior, and dependency checks passed. |
 | GitHub CodeQL workflow | Python and JavaScript TypeScript analysis passed. |
 | PostgreSQL workflow migration | Applied and verified. |
-| Hosted workflow walkthrough | Recommendation, approval, simulated execution, verification, and four audit events completed after application reboot. |
+| Restricted role verification | Application isolation, direct row level security isolation, cross session insertion denial, metadata access denial, and audit mutation privilege denial were verified. |
+| Atomic persistence | Proposal and transition operations commit their event and state change together or roll back together. |
+| Concurrent transition safety | A competing rejection prevents a later approval from using stale state. |
 
-These are recorded results for the phase three checkpoint, not a claim
-that every later commit has passed. Inspect GitHub Actions for current
-workflow results.
+These results describe the verified checkpoint, not a claim that every
+future commit has passed. Inspect GitHub Actions for current workflow
+results.
 
-The Python suite emitted one test client deprecation warning. That warning
+The Python suite emits one test client deprecation warning. That warning
 remains recorded rather than suppressed.
 
 Automated execution tests do not establish complete accessibility,
-production capacity, security certification, or unrestricted hosted
-availability.
+production capacity, security certification, live database recovery, or
+unrestricted hosted availability.
 
-## Phase three assurance journey
+## Assurance workflow
 
 The Catalog Repository connects evidence findings to a controlled
 improvement workflow. A reviewer can propose a recommendation from failing or
@@ -159,13 +166,20 @@ Workflow requests use request identifiers for idempotency. Recommendations
 and events are isolated by demonstration session. Execution is explicitly
 simulated and does not change production infrastructure.
 
-The public interface uses an in memory demonstration store by default. The
-PostgreSQL workflow repository and migration are implemented, applied,
-and verified. The public interface remains in memory mode by default until
-restricted runtime credentials and hosted session isolation are configured.
+A proposal must use the rule version represented by the evaluated evidence.
+A workflow event and its resulting recommendation state are saved in one
+atomic transaction. If that transaction fails, neither the event nor the
+state change remains.
 
-See [the phase three scope record](docs/PHASE_THREE.md) and
-[the phase three verification record](docs/PHASE_THREE_VERIFICATION.md).
+The public interface uses an in memory demonstration store by default. The
+PostgreSQL workflow repository, migrations, restricted role, and session
+scoped row level security are implemented. Hosted PostgreSQL mode remains
+separate work until its live connection, rollback behavior, and session
+isolation are verified.
+
+See [the phase three scope record](docs/PHASE_THREE.md),
+[the phase three verification record](docs/PHASE_THREE_VERIFICATION.md),
+and [the phase four verification record](docs/PHASE_FOUR_VERIFICATION.md).
 
 ## Earlier phase evidence
 
@@ -252,6 +266,7 @@ BOND does not claim that every connection is encrypted.
 | [Phase two contract](docs/PHASE_TWO.md) | Console refinement and component acceptance requirements. |
 | [Phase three scope](docs/PHASE_THREE.md) | Assurance workflow scope and boundaries. |
 | [Phase three verification](docs/PHASE_THREE_VERIFICATION.md) | Recorded phase three checks and limitations. |
+| [Phase four verification](docs/PHASE_FOUR_VERIFICATION.md) | Restricted authorization, atomic persistence, and recovery evidence. |
 | [Security](docs/SECURITY.md) | Credential handling and verification expectations. |
 | [Known limits](docs/KNOWN_LIMITS.md) | Incomplete capabilities and maintenance findings. |
 | [Operating plan](docs/OPERATIONS.md) | Hosting, recovery expectations, and the ninety day plan. |
@@ -260,9 +275,8 @@ BOND does not claim that every connection is encrypted.
 ## Development transparency
 
 BOND is being built with AI assistance for research, implementation,
-documentation, and review. The applicant remains responsible for
-understanding the system, validating its behavior, and explaining its
-decisions.
+documentation, and review. I remain responsible for understanding the
+system, validating its behavior, and explaining its decisions.
 
 ## License
 
