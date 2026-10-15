@@ -33,6 +33,7 @@ class WorkflowRepository(Protocol):
     def find_event(
         self,
         improvement_id: UUID,
+        session_id: UUID,
         request_id: UUID,
     ) -> WorkflowEvent | None: ...
 

@@ -61,10 +61,15 @@ class InMemoryWorkflowRepository:
     def find_event(
         self,
         improvement_id: UUID,
+        session_id: UUID,
         request_id: UUID,
     ) -> WorkflowEvent | None:
+        recommendation = self._recommendations.get(improvement_id)
+        if recommendation is None or recommendation.session_id != session_id:
+            return None
+
         for event in self._events.get(improvement_id, ()):
-            if event.request_id == request_id:
+            if event.session_id == session_id and event.request_id == request_id:
                 return event
         return None
 

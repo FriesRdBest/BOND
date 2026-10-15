@@ -68,6 +68,7 @@ class AssuranceWorkflow:
     ) -> Recommendation | None:
         existing = self._workflows.find_event(
             recommendation.id,
+            recommendation.session_id,
             request_id,
         )
         if existing is not None:
