@@ -23,75 +23,64 @@ def apply_intro_shell() -> None:
         .bond-rays {
             position: absolute;
             inset: 0;
-            opacity: 0;
-            animation:
-                bond-rays-in 600ms ease-out 500ms forwards,
-                bond-rays-move 2750ms linear 500ms forwards;
         }
 
-        .bond-rays::before,
-        .bond-rays::after {
-            content: "";
+        .bond-line {
             position: absolute;
-            top: -20%;
-            bottom: -20%;
-            width: 45%;
+            left: -30%;
+            width: 30%;
+            height: 2px;
             background: linear-gradient(
                 90deg,
-                rgba(167, 139, 250, 0) 0%,
-                rgba(167, 139, 250, 0.16) 45%,
-                rgba(196, 181, 253, 0.10) 70%,
-                rgba(167, 139, 250, 0) 100%
+                rgba(207, 194, 254, 0) 0%,
+                #CFC2FE 50%,
+                rgba(207, 194, 254, 0) 100%
             );
-            filter: blur(28px);
+            filter: blur(0.4px);
+            opacity: 0;
+            animation: bond-line-pass 2750ms linear 500ms infinite;
         }
 
-        .bond-rays::before {
-            left: -45%;
-            animation: bond-ray-left 2750ms linear 500ms forwards;
-        }
-
-        .bond-rays::after {
-            left: -20%;
-            animation: bond-ray-right 2750ms linear 500ms forwards;
-        }
+        .bond-line:nth-child(1) { top: 18%; animation-delay: 500ms; }
+        .bond-line:nth-child(2) { top: 32%; animation-delay: 850ms; }
+        .bond-line:nth-child(3) { top: 47%; animation-delay: 620ms; }
+        .bond-line:nth-child(4) { top: 61%; animation-delay: 980ms; }
+        .bond-line:nth-child(5) { top: 74%; animation-delay: 720ms; }
+        .bond-line:nth-child(6) { top: 86%; animation-delay: 1100ms; }
 
         .bond-title {
             position: relative;
             z-index: 2;
             display: flex;
-            gap: 0.18em;
-            font-size: clamp(3rem, 12vw, 9rem);
-            font-weight: 800;
-            letter-spacing: 0.08em;
+            gap: 0.06em;
+            font-size: min(21vw, 42vh);
+            font-weight: 900;
+            letter-spacing: 0.02em;
             color: #F4F3F8;
-            text-shadow: 0 0 34px rgba(167, 139, 250, 0.35);
+            text-shadow: 0 0 44px rgba(207, 194, 254, 0.35);
         }
 
         .bond-slot {
             display: inline-block;
-            min-width: 0.62em;
+            min-width: 0.58em;
             text-align: center;
         }
 
-        @keyframes bond-rays-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes bond-rays-move {
-            from { transform: translateX(0); }
-            to { transform: translateX(12%); }
-        }
-
-        @keyframes bond-ray-left {
-            from { transform: translateX(0); }
-            to { transform: translateX(320%); }
-        }
-
-        @keyframes bond-ray-right {
-            from { transform: translateX(0); }
-            to { transform: translateX(380%); }
+        @keyframes bond-line-pass {
+            0% {
+                transform: translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.9;
+            }
+            90% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: translateX(440%);
+                opacity: 0;
+            }
         }
 
         @keyframes bond-intro-out {
@@ -109,7 +98,14 @@ def apply_intro_shell() -> None:
         </style>
 
         <div class="bond-intro">
-            <div class="bond-rays"></div>
+            <div class="bond-rays">
+                <div class="bond-line"></div>
+                <div class="bond-line"></div>
+                <div class="bond-line"></div>
+                <div class="bond-line"></div>
+                <div class="bond-line"></div>
+                <div class="bond-line"></div>
+            </div>
             <div class="bond-title" id="bond-title"></div>
         </div>
 
