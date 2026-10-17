@@ -54,10 +54,10 @@ def apply_intro_shell() -> None:
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.35em;
-            font-size: min(6.2vw, 12.4vh);
+            gap: 0.7583333333em;
+            font-size: min(3.72vw, 7.44vh);
             font-weight: 900;
-            letter-spacing: 0.35em;
+            letter-spacing: 0.7583333333em;
             color: #FFFFFF;
             text-shadow: 0 0 34px rgba(207, 194, 254, 0.35);
             animation:
