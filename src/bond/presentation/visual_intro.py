@@ -10,20 +10,13 @@ def apply_intro_shell() -> None:
         .bond-intro {
             position: fixed;
             inset: 0;
-            z-index: 10000;
+            z-index: 999999;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            background:
-                radial-gradient(
-                    ellipse at center,
-                    rgba(0, 0, 0, 0) 0%,
-                    rgba(0, 0, 0, 0.55) 55%,
-                    rgba(0, 0, 0, 0.95) 100%
-                ),
-                #000;
-            pointer-events: none;
+            background: #000;
+            pointer-events: auto;
             animation: bond-intro-out 500ms ease-in 4000ms forwards;
         }
 
