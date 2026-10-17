@@ -669,7 +669,13 @@ def main() -> None:
     with st.sidebar:
         st.title("BOND")
         st.caption("Engineering assurance workbench")
-        page = st.radio("Workspace", PAGES, key="workspace_page")
+        st.html('<div class="bond-eyebrow">WORKSPACE</div>')
+        page = st.radio(
+            "Workspace",
+            PAGES,
+            key="workspace_page",
+            label_visibility="collapsed",
+        )
         st.divider()
         st.caption("Synthetic evidence")
         st.caption("Independent portfolio demonstration")

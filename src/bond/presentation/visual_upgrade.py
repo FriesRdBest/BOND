@@ -66,6 +66,27 @@ def apply_visual_upgrade() -> None:
             filter: brightness(1.06);
         }
 
+        [data-testid="stSidebar"] [data-testid="stRadio"] {
+            gap: 0.15rem;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] label {
+            transition:
+                background-color 160ms ease-out,
+                color 160ms ease-out,
+                transform 160ms ease-out;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+            background: rgba(167, 139, 250, 0.10);
+            transform: translateX(3px);
+        }
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] > div:first-child,
+        [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetLabel"] {
+            pointer-events: none;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .stApp,
             .stApp [data-testid="stMetric"],
