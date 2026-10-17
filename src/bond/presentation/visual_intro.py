@@ -129,7 +129,7 @@ def apply_intro_shell() -> None:
             const spans = chars.map((character) => {
                 const span = document.createElement("span");
                 span.className = "bond-slot";
-                span.textContent = character === " " ? "\u00A0" : "A";
+                span.textContent = character === " " ? "\u00a0" : "A";
                 container.appendChild(span);
                 return span;
             });
@@ -145,14 +145,14 @@ def apply_intro_shell() -> None:
                 if (elapsed >= rollDuration) {
                     spans.forEach((span, index) => {
                         const character = chars[index];
-                        span.textContent = character === " " ? "\u00A0" : character;
+                        span.textContent = character === " " ? "\u00a0" : character;
                     });
                     return;
                 }
                 spans.forEach((span, index) => {
                     const character = chars[index];
                     if (character === " " || character === "-") {
-                        span.textContent = character === " " ? "\u00A0" : character;
+                        span.textContent = character === " " ? "\u00a0" : character;
                         return;
                     }
                     span.textContent = alphabet[Math.floor(Math.random() * alphabet.length)];
