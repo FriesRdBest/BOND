@@ -52,18 +52,37 @@ def apply_intro_shell() -> None:
             position: relative;
             z-index: 2;
             display: flex;
+            align-items: center;
+            justify-content: center;
             gap: 0.06em;
-            font-size: min(21vw, 42vh);
+            font-size: min(9.5vw, 19vh);
             font-weight: 900;
             letter-spacing: 0.02em;
             color: #FFFFFF;
-            text-shadow: 0 0 44px rgba(207, 194, 254, 0.35);
+            text-shadow: 0 0 34px rgba(207, 194, 254, 0.35);
+            animation:
+                bond-title-blink 2750ms steps(1, end) 500ms forwards,
+                bond-title-solid 200ms ease-out 3250ms forwards;
         }
 
         .bond-slot {
             display: inline-block;
             min-width: 0.58em;
             text-align: center;
+        }
+
+        @keyframes bond-title-blink {
+            0%, 12% { opacity: 0.15; }
+            18%, 30% { opacity: 1; }
+            36%, 48% { opacity: 0.25; }
+            54%, 66% { opacity: 1; }
+            72%, 84% { opacity: 0.35; }
+            90%, 100% { opacity: 1; }
+        }
+
+        @keyframes bond-title-solid {
+            from { opacity: 1; }
+            to { opacity: 1; }
         }
 
         @keyframes bond-line-pass {
