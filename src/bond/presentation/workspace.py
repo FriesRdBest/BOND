@@ -22,6 +22,7 @@ from bond.presentation.data_views import render_line_chart, render_table
 from bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer
 from bond.presentation.refinements import apply_refinements
 from bond.presentation.styles import apply_styles, load_tokens
+from bond.presentation.visual_upgrade import apply_visual_upgrade
 from bond.repositories.fixtures import FixtureCatalogRepository
 from bond.workflow_runtime import build_hosted_workflow_runtime
 
@@ -641,6 +642,7 @@ def main() -> None:
     )
     apply_styles()
     apply_refinements()
+    apply_visual_upgrade()
 
     if "workspace_page" not in st.session_state:
         destinations = {
