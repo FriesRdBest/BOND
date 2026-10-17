@@ -82,6 +82,16 @@ def apply_visual_upgrade() -> None:
             transform: translateX(3px);
         }
 
+        [data-testid="stSidebar"] [data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
+            color: var(--bond-s-accent);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:hover div[data-testid="stMarkdownContainer"] p {
+            color: var(--bond-s-accent);
+        }
+
         [data-testid="stSidebar"] [data-testid="stRadio"] > div:first-child,
         [data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetLabel"] {
             pointer-events: none;
