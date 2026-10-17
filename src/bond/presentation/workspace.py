@@ -23,6 +23,7 @@ from bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer
 from bond.presentation.refinements import apply_refinements
 from bond.presentation.styles import apply_styles, load_tokens
 from bond.presentation.visual_css import apply_core_css
+from bond.presentation.visual_intro import apply_intro_shell
 from bond.presentation.visual_loader import apply_loading_experience
 from bond.presentation.visual_motion import apply_motion
 from bond.presentation.visual_upgrade import apply_visual_upgrade
@@ -649,6 +650,7 @@ def main() -> None:
     apply_loading_experience()
     apply_core_css()
     apply_motion()
+    apply_intro_shell()
 
     if "workspace_page" not in st.session_state:
         destinations = {
