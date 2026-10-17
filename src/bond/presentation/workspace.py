@@ -668,8 +668,7 @@ def main() -> None:
 
     with st.sidebar:
         st.title("BOND")
-        st.caption("Engineering assurance workbench")
-        st.html('<div class="bond-eyebrow">WORKSPACE</div>')
+        st.html('<div class="bond-eyebrow">ENGINEERING ASSURANCE WORKSPACE</div>')
         page = st.radio(
             "Workspace",
             PAGES,
