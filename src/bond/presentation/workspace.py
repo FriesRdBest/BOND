@@ -1,1 +1,684 @@
-"""Evidence inspection workspace. Synthetic data and no production actions."""\n\nfrom html import escape\nfrom uuid import uuid4\n\nimport streamlit as st\nfrom streamlit.errors import StreamlitSecretNotFoundError\n\nfrom bond.application import CatalogApplication, OrganizationSnapshot, ServiceAssessment\nfrom bond.application_workflow import AssuranceWorkflow\nfrom bond.demo import warehouse_fixture\nfrom bond.domain.models import RuleStatus\nfrom bond.domain.rules import summarize\nfrom bond.domain.workflow import (\n    ExecutionRecord,\n    RecommendationDraft,\n    VerificationRecord,\n    WorkflowDecision,\n    WorkflowStatus,\n)\nfrom bond.presentation.data_views import render_line_chart, render_table\nfrom bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer\nfrom bond.presentation.refinements import apply_refinements\nfrom bond.presentation.styles import apply_styles, load_tokens\nfrom bond.repositories.fixtures import FixtureCatalogRepository\nfrom bond.workflow_runtime import build_hosted_workflow_runtime\n\nPAGES = (\n    "Scorecard Console",\n    "Catalog Repository",\n    "Pipeline Laboratory",\n    "Engineering Notes",\n)\n\nWORKFLOW_SESSION_KEY = "assurance_session_id"\nINTRO_SHOWN_KEY = "bond_intro_shown"\n\n\ndef _workflow() -> AssuranceWorkflow:\n    if WORKFLOW_SESSION_KEY not in st.session_state:\n        try:\n            hosted_settings = dict(st.secrets)\n        except StreamlitSecretNotFoundError:\n            hosted_settings = {}\n        runtime = build_hosted_workflow_runtime(hosted_settings)\n        session_id = uuid4()\n        runtime.open_session(session_id)\n        st.session_state[WORKFLOW_SESSION_KEY] = session_id\n        st.session_state["assurance_workflow"] = runtime.application\n    return st.session_state["assurance_workflow"]\n\n\ndef _render_intro() -> None:\n    """Render a CSS-only introductory sequence on first load or refresh."""\n\n    if st.session_state.get(INTRO_SHOWN_KEY):\n        return\n\n    st.session_state[INTRO_SHOWN_KEY] = True\n    st.html(\n        """\n        <style>\n        .bond-intro {\n            position: fixed;\n            inset: 0;\n            z-index: 999999;\n            display: grid;\n            place-items: center;\n            background: rgba(21, 19, 31, 0.93);\n            color: var(--bond-s-foreground, #eceaf4);\n            overflow: hidden;\n            animation: bond-intro-exit 500ms ease-in 2.5s forwards;\n            pointer-events: none;\n        }\n        .bond-intro__streak {\n            position: absolute;\n            height: 2px;\n            width: 34vw;\n            border-radius: 999px;\n            filter: blur(7px);\n            opacity: 0.55;\n            background: linear-gradient(\n                90deg,\n                rgba(107, 80, 201, 0),\n                #6b50c9,\n                #cfc2fe,\n                rgba(207, 194, 254, 0)\n            );\n        }\n        .bond-intro__streak:nth-child(1) {\n            top: 28%;\n            left: -8%;\n            animation: bond-drift-right 9s ease-in-out infinite;\n        }\n        .bond-intro__streak:nth-child(2) {\n            top: 47%;\n            left: 18%;\n            width: 26vw;\n            animation: bond-drift-left 12s ease-in-out infinite;\n        }\n        .bond-intro__streak:nth-child(3) {\n            top: 66%;\n            left: -4%;\n            width: 42vw;\n            animation: bond-drift-right 15s ease-in-out infinite;\n        }\n        .bond-intro__streak:nth-child(4) {\n            top: 79%;\n            left: 30%;\n            width: 22vw;\n            opacity: 0.35;\n            animation: bond-drift-left 18s ease-in-out infinite;\n        }\n        .bond-intro__signal {\n            position: absolute;\n            top: -8vh;\n            width: 4px;\n            height: 4px;\n            border-radius: 50%;\n            background: #cfc2fe;\n            box-shadow: 0 0 12px rgba(207, 194, 254, 0.85);\n            opacity: 0;\n            animation: bond-signal-descend 2.1s cubic-bezier(0.3, 0, 0.4, 1) forwards;\n        }\n        .bond-intro__signal:nth-child(5) { left: 34%; animation-delay: 0.10s; }\n        .bond-intro__signal:nth-child(6) { left: 43%; animation-delay: 0.24s; }\n        .bond-intro__signal:nth-child(7) { left: 51%; animation-delay: 0.06s; }\n        .bond-intro__signal:nth-child(8) { left: 59%; animation-delay: 0.30s; }\n        .bond-intro__signal:nth-child(9) { left: 67%; animation-delay: 0.18s; }\n        .bond-intro__mark {\n            position: relative;\n            z-index: 2;\n            font-size: clamp(2.4rem, 7vw, 4.8rem);\n            font-weight: 700;\n            letter-spacing: 0.08em;\n            color: #eceaf4;\n            text-shadow: 0 0 28px rgba(207, 194, 254, 0.38);\n            opacity: 0;\n            transform: translateY(14px);\n            animation: bond-mark-reveal 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 1.25s forwards;\n        }\n        .bond-intro__rule {\n            position: relative;\n            z-index: 2;\n            width: 0;\n            height: 1px;\n            margin-top: 1.15rem;\n            background: linear-gradient(90deg, transparent, #cfc2fe, transparent);\n            animation: bond-rule-expand 650ms ease-out 2.05s forwards;\n        }\n        @keyframes bond-drift-right {\n            0%, 100% { transform: translateX(0); }\n            50% { transform: translateX(7vw); }\n        }\n        @keyframes bond-drift-left {\n            0%, 100% { transform: translateX(0); }\n            50% { transform: translateX(-9vw); }\n        }\n        @keyframes bond-signal-descend {\n            0% { transform: translateY(0); opacity: 0; }\n            18% { opacity: 0.85; }\n            78% { opacity: 0.55; }\n            100% { transform: translateY(46vh); opacity: 0; }\n        }\n        @keyframes bond-mark-reveal {\n            0% { opacity: 0; transform: translateY(14px); filter: blur(5px); }\n            100% { opacity: 1; transform: translateY(0); filter: blur(0); }\n        }\n        @keyframes bond-rule-expand {\n            0% { width: 0; opacity: 0; }\n            100% { width: min(280px, 42vw); opacity: 0.9; }\n        }\n        @keyframes bond-intro-exit {\n            0% { opacity: 1; backdrop-filter: blur(4px); }\n            100% { opacity: 0; backdrop-filter: blur(0); visibility: hidden; }\n        }\n        @media (prefers-reduced-motion: reduce) {\n            .bond-intro {\n                animation: bond-intro-exit 500ms ease-in 1s forwards;\n            }\n            .bond-intro__streak,\n            .bond-intro__signal {\n                display: none;\n            }\n            .bond-intro__mark {\n                opacity: 1;\n                transform: none;\n                animation: none;\n            }\n            .bond-intro__rule {\n                width: min(280px, 42vw);\n                opacity: 0.9;\n                animation: none;\n            }\n        }\n        </style>\n        <div class=\"bond-intro\" aria-hidden=\"true\">\n            <span class=\"bond-intro__streak\"></span>\n            <span class=\"bond-intro__streak\"></span>\n            <span class=\"bond-intro__streak\"></span>\n            <span class=\"bond-intro__streak\"></span>\n            <span class=\"bond-intro__signal\"></span>\n            <span class=\"bond-intro__signal\"></span>\n            <span class=\"bond-intro__signal\"></span>\n            <span class=\"bond-intro__signal\"></span>\n            <span class=\"bond-intro__signal\"></span>\n            <div>\n                <div class=\"bond-intro__mark\">b-o-n-d</div>\n                <div class=\"bond-intro__rule\"></div>\n            </div>\n        </div>\n        """\n    )\n\n\ndef _open_service(service_id: str) -> None:\n    st.session_state["workspace_page"] = "Catalog Repository"\n    st.session_state["catalog_requested_service"] = service_id\n    st.session_state["catalog_search"] = ""\n    st.session_state["catalog_owner"] = "All owners"\n    st.session_state["catalog_result_filter"] = "All results"\n\n\ndef page_header(eyebrow: str, title: str, description: str) -> None:\n    st.html(f'<div class="bond-eyebrow">{escape(eyebrow)}</div>')\n    st.title(title)\n    st.html(f'<p class="bond-introduction">{escape(description)}</p>')\n\n\ndef service_table(assessments: tuple[ServiceAssessment, ...]) -> None:\n    rows = [\n        {\n            "Service": item.service.name,\n            "Owner": item.service.owner or "Unassigned",\n            "Tier": item.service.tier,\n            "Score": (\n                f"{item.summary.score_percent:.1f}%"\n                if item.summary.score_percent is not None\n                else "No score"\n            ),\n            "Failing rules": item.summary.failed,\n            "Missing evidence": item.summary.unknown,\n        }\n        for item in assessments\n    ]\n    if not rows:\n        st.info("No services match this view. Change the search or filters.")\n        return\n    render_table(rows, hide_index=True, width="stretch")\n\n\ndef render_scorecard(snapshot: OrganizationSnapshot) -> None:\n    page_header(\n        "Organization assurance",\n        "Scorecard Console",\n        "Understand maturity, find accountable owners, "\n        "and move directly to the evidence behind a finding.",\n    )\n\n    columns = st.columns(4)\n    score = snapshot.summary.score_percent\n    coverage = snapshot.summary.evidence_coverage_percent\n\n    columns[0].metric("Maturity score", f"{score:.1f}%" if score is not None else "No score")\n    columns[1].metric(\n        "Evidence coverage",\n        f"{coverage:.1f}%" if coverage is not None else "No evidence",\n    )\n    columns[2].metric(\n        "Owned services",\n        f"{snapshot.owned_service_count} / {snapshot.service_count}",\n    )\n    columns[3].metric("Failing rules", snapshot.summary.failed)\n\n    st.html(\n        '<div class="bond-notification">'\n        "<strong>Review the assurance boundary:</strong> findings are inspectable; "\n        "workflow execution remains a clearly simulated demonstration."\n        "</div>"\n    )\n\n    st.caption(\n        "Three equally weighted rules per service. Missing evidence remains in the "\n        "score denominator and never counts as passing."\n    )\n\n    with st.expander("Understand the score"):\n        st.write(\n            f"{snapshot.summary.passed} passing results, "\n            f"{snapshot.summary.failed} failing results, and "\n            f"{snapshot.summary.unknown} unknown results across "\n            f"{snapshot.summary.total} gates."\n        )\n        st.write(\n            "Maturity is passing gates divided by all gates. Evidence coverage is known "\n            "results divided by all gates. Neither measure proves production readiness."\n        )\n\n    st.subheader("Attention queue")\n    attention = sorted(\n        (\n            item\n            for item in snapshot.assessments\n            if item.summary.failed > 0 or item.summary.unknown > 0\n        ),\n        key=lambda item: (-item.summary.failed, -item.summary.unknown, item.service.name),\n    )\n\n    if not attention:\n        st.info("No failing or unknown results exist in the current evidence.")\n\n    for item in attention:\n        with st.container(border=True):\n            detail, action = st.columns([4, 1])\n            with detail:\n                st.write(item.service.name)\n                st.caption(\n                    f"Owner: {item.service.owner or 'Unassigned'} · "\n                    f"{item.summary.failed} failing · {item.summary.unknown} missing"\n                )\n            with action:\n                st.button(\n                    "Inspect evidence",\n                    key=f"attention_{item.service.id}",\n                    on_click=_open_service,\n                    args=(item.service.id,),\n                )\n\n    st.subheader("Service maturity")\n    service_table(snapshot.assessments)\n\n    with st.container(border=True):\n        st.subheader("The assurance boundary")\n        st.write(\n            "Findings are inspectable today. Recommendations, approval, simulated execution, "\n            "and independent verification are the next workflow layer."\n        )\n\n\ndef _matches_result(item: ServiceAssessment, result_filter: str) -> bool:\n    if result_filter == "Needs attention":\n        return item.summary.failed > 0\n    if result_filter == "Missing evidence":\n        return item.summary.unknown > 0\n    if result_filter == "Passing":\n        return item.summary.total > 0 and item.summary.failed == 0 and item.summary.unknown == 0\n    return True\n\n\ndef _filtered_snapshot(\n    assessments: tuple[ServiceAssessment, ...],\n) -> OrganizationSnapshot:\n    return OrganizationSnapshot(\n        assessments=assessments,\n        summary=summarize(result for assessment in assessments for result in assessment.results),\n    )\n\n\ndef _workflow_status_label(status: WorkflowStatus) -> str:\n    return {\n        WorkflowStatus.PROPOSED: "Proposed",\n        WorkflowStatus.APPROVED: "Approved",\n        WorkflowStatus.REJECTED: "Rejected",\n        WorkflowStatus.EXECUTED: "Simulated action recorded",\n        WorkflowStatus.VERIFIED: "Verified",\n        WorkflowStatus.REVIEW_REQUIRED: "Review required",\n    }[status]\n\n\ndef _render_workflow(selected: ServiceAssessment) -> None:\n    workflow = _workflow()\n    session_id = st.session_state[WORKFLOW_SESSION_KEY]\n    service = selected.service\n\n    st.subheader("Improvement workflow")\n    st.caption(\n        "Recommendations are session isolated. Execution is simulated and "\n        "never changes production infrastructure."\n    )\n\n    recommendations = workflow.recommendations(session_id)\n    service_recommendations = tuple(\n        item for item in recommendations if item.service_id == service.id\n    )\n\n    failing_or_unknown = tuple(\n        result for result in selected.results if result.status is not RuleStatus.PASS\n    )\n\n    if failing_or_unknown:\n        with st.form("create_recommendation", border=True):\n            rule = st.selectbox(\n                "Evidence finding",\n                failing_or_unknown,\n                format_func=lambda item: f"{item.rule_id} · {item.status.value}",\n            )\n            title = st.text_input(\n                "Recommendation title",\n                value=f"Address {rule.rule_id} for {service.name}",\n            )\n            detail = st.text_area(\n                "Why this action is recommended",\n                value=rule.explanation,\n            )\n            expected = st.text_area(\n                "Expected verified result",\n                value="The selected evidence finding is resolved.",\n            )\n            submitted = st.form_submit_button("Propose recommendation")\n\n        if submitted:\n            try:\n                workflow.propose(\n                    session_id,\n                    RecommendationDraft(\n                        service_id=service.id,\n                        rule_id=rule.rule_id,\n                        rule_version=rule.version,\n                        title=title,\n                        detail=detail,\n                        owner=service.owner,\n                        expected_result=expected,\n                    ),\n                    uuid4(),\n                )\n                st.success("Recommendation proposed in this demonstration session.")\n                st.rerun()\n            except ValueError as error:\n                st.error(str(error))\n    else:\n        st.info("No failing or missing evidence is available for a new recommendation.")\n\n    if not service_recommendations:\n        st.caption("No recommendations exist for this service in this session.")\n        return\n\n    for item in service_recommendations:\n        with st.container(border=True):\n            status = _workflow_status_label(item.status)\n            st.write(f"**{item.title}** · {status}")\n            st.caption(\n                f"Rule {item.rule_id} · Version {item.rule_version} · "\n                f"Owner {item.owner or 'Unassigned'}"\n            )\n            st.write(item.detail)\n            st.write(f"Expected result: {item.expected_result}")\n\n            if item.status is WorkflowStatus.PROPOSED:\n                approval, rejection = st.columns(2)\n                with approval:\n                    if st.button("Approve", key=f"approve_{item.id}"):\n                        workflow.approve(\n                            item.id,\n                            session_id,\n                            WorkflowDecision(\n                                actor="Demonstration approver",\n                                reason="Approved for simulated execution.",\n                                request_id=uuid4(),\n                            ),\n                        )\n                        st.rerun()\n                with rejection:\n                    if st.button("Reject", key=f"reject_{item.id}"):\n                        workflow.reject(\n                            item.id,\n                            session_id,\n                            WorkflowDecision(\n                                actor="Demonstration approver",\n                                reason="Rejected in this demonstration session.",\n                                request_id=uuid4(),\n                            ),\n                        )\n                        st.rerun()\n\n            elif item.status is WorkflowStatus.APPROVED:\n                if st.button("Record simulated execution", key=f"execute_{item.id}"):\n                    workflow.execute(\n                        item.id,\n                        session_id,\n                        ExecutionRecord(\n                            actor="Demonstration automation",\n                            simulated_command="apply_documented_improvement",\n                            reason="The approved action is simulated.",\n                            request_id=uuid4(),\n                        ),\n                    )\n                    st.rerun()\n\n            elif item.status is WorkflowStatus.EXECUTED:\n                verified, review = st.columns(2)\n                with verified:\n                    if st.button("Verify success", key=f"verify_{item.id}"):\n                        workflow.verify(\n                            item.id,\n                            session_id,\n                            VerificationRecord(\n                                actor="Demonstration reviewer",\n                                observed_result="The expected evidence change was observed.",\n                                passed=True,\n                                reason="The expected result was confirmed.",\n                                request_id=uuid4(),\n                            ),\n                        )\n                        st.rerun()\n                with review:\n                    if st.button("Send for review", key=f"review_{item.id}"):\n                        workflow.verify(\n                            item.id,\n                            session_id,\n                            VerificationRecord(\n                                actor="Demonstration reviewer",\n                                observed_result="The expected evidence change was not observed.",\n                                passed=False,\n                                reason="Additional review is required.",\n                                request_id=uuid4(),\n                            ),\n                        )\n                        st.rerun()\n\n            with st.expander("Audit history"):\n                events = workflow.history(item.id, session_id)\n                if not events:\n                    st.caption("No workflow events are recorded yet.")\n                for event in events:\n                    st.write(\n                        f"{event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')} · "\n                        f"{event.kind.value} · {event.actor}"\n                    )\n                    st.caption(event.detail)\n\n\ndef _native_service_detail(\n    selected: ServiceAssessment,\n    snapshot: OrganizationSnapshot,\n) -> None:\n    with st.container(border=True):\n        st.subheader(selected.service.name)\n        st.write(selected.service.description)\n        st.caption(\n            f"Owner: {selected.service.owner or 'Unassigned'} · "\n            f"Tier {selected.service.tier} · Synthetic source"\n        )\n\n        for result in selected.results:\n            label = {\n                RuleStatus.PASS: "Pass",\n                RuleStatus.FAIL: "Needs attention",\n                RuleStatus.UNKNOWN: "Missing evidence",\n            }[result.status]\n            st.html(\n                f'<span class="bond-status bond-{escape(result.status.value)}">'\n                f"{escape(label)}</span>"\n            )\n            st.write(result.explanation)\n            st.caption(f"Rule: {result.rule_id} · Version: {result.version}")\n\n        names = {item.service.id: item.service.name for item in snapshot.assessments}\n        dependencies = [\n            names.get(identifier, identifier) for identifier in selected.service.dependencies\n        ]\n        st.write("Dependencies")\n        st.write(", ".join(dependencies) if dependencies else "No dependencies recorded")\n        st.caption(\n            "Fixed observation: "\n            + selected.service.observed_at.isoformat()\n            + ". Not a live production observation."\n        )\n\n    _render_workflow(selected)\n\n\ndef render_catalog(snapshot: OrganizationSnapshot) -> None:\n    page_header(\n        "Service context",\n        "Catalog Repository",\n        "Follow a service from ownership and dependencies to the rule evidence that needs review.",\n    )\n\n    search = st.text_input(\n        "Search services",\n        placeholder="Search by service name or owner",\n        key="catalog_search",\n    )\n\n    owners = sorted(\n        {item.service.owner for item in snapshot.assessments if item.service.owner is not None}\n    )\n\n    first, second = st.columns(2)\n    with first:\n        owner = st.selectbox(\n            "Owner",\n            ["All owners", "Unassigned", *owners],\n            key="catalog_owner",\n        )\n    with second:\n        result_filter = st.selectbox(\n            "Rule results",\n            ["All results", "Needs attention", "Missing evidence", "Passing"],\n            key="catalog_result_filter",\n        )\n\n    query = search.strip().casefold()\n    matching = tuple(\n        item\n        for item in snapshot.assessments\n        if (\n            not query\n            or query in item.service.name.casefold()\n            or query in (item.service.owner or "").casefold()\n        )\n        and (\n            owner == "All owners"\n            or (owner == "Unassigned" and item.service.owner is None)\n            or item.service.owner == owner\n        )\n        and _matches_result(item, result_filter)\n    )\n\n    st.caption(f"{len(matching)} of {snapshot.service_count} services in this view")\n    service_table(matching)\n\n    if not matching:\n        return\n    names = {item.service.id: item.service.name for item in matching}\n    selected_key = NATIVE_SELECTION_KEY\n    requested = st.session_state.pop("catalog_requested_service", None)\n    existing = st.session_state.get(selected_key)\n\n    if isinstance(requested, str) and requested in names:\n        st.session_state[selected_key] = requested\n    elif not isinstance(existing, str) or existing not in names:\n        st.session_state[selected_key] = next(iter(names))\n\n    native_only = st.toggle(\n        "Use native evidence view",\n        value=False,\n        key="native_evidence_only",\n        help="The native service inspector remains available without the React explorer.",\n    )\n\n    if not native_only:\n        selection = st.session_state.get(selected_key)\n        selected_id = selection if isinstance(selection, str) and selection in names else None\n        event = render_explorer(_filtered_snapshot(matching), selected_id)\n        if event is not None:\n            st.session_state[selected_key] = event.service_id\n\n    st.subheader("Native service inspection")\n    st.caption("This inspection path does not depend on the custom component.")\n\n    selected_id = st.selectbox(\n        "Inspect service",\n        list(names),\n        format_func=lambda identifier: names[identifier],\n        key=selected_key,\n    )\n\n    selected = next(item for item in matching if item.service.id == selected_id)\n    _native_service_detail(selected, snapshot)\n\n\ndef render_pipeline() -> None:\n    window = warehouse_fixture()\n    tokens = load_tokens()\n\n    page_header(\n        "Warehouse evidence",\n        "Pipeline Laboratory",\n        "Inspect warehouse consumption and query behavior without confusing "\n        "synthetic evidence with live activity.",\n    )\n\n    p95 = window.p95_ms\n    columns = st.columns(3)\n    columns[0].metric("Warehouse credits", f"{window.credits_consumed:.2f}")\n    columns[1].metric("Credit burn per hour", f"{window.credits_per_hour:.2f}")\n    columns[2].metric("P95 query latency", f"{p95:.0f} ms" if p95 is not None else "No samples")\n\n    st.caption(\n        f"{window.warehouse} · Synthetic source · "\n        f"{window.window_seconds} second window · "\n        f"{len(window.latencies_ms)} samples"\n    )\n\n    st.subheader("Query latency")\n    render_line_chart(\n        {"Latency in milliseconds": list(window.latencies_ms)},\n        color=tokens.primitives["violet"],\n        height=260,\n    )\n\n    threshold = st.number_input(\n        "Review threshold in milliseconds",\n        min_value=1,\n        value=300,\n        step=50,\n    )\n    only_above = st.toggle("Show only samples above the review threshold", value=False)\n    st.caption("Exploratory filter only. It does not change policy or persisted evidence.")\n\n    rows = [\n        {\n            "Query sample": f"DEMO_{index:03d}",\n            "Latency in milliseconds": latency,\n            "Review state": "Above threshold" if latency > threshold else "Within threshold",\n            "Source": "Synthetic",\n        }\n        for index, latency in enumerate(window.latencies_ms, start=1)\n        if not only_above or latency > threshold\n    ]\n\n    st.caption(f"Showing {len(rows)} of {len(window.latencies_ms)} query samples")\n\n    if rows:\n        render_table(rows, hide_index=True, width="stretch")\n    else:\n        st.info("No query samples exceed the current review threshold.")\n\n    with st.expander("Measurement method and source"):\n        st.write(\n            "P95 uses nearest rank over the ten fixed samples. Warehouse credits "\n            "are consumption units, not money. The threshold is an inspection aid, "\n            "not an approved engineering policy."\n        )\n        st.caption("Fixed observation: " + window.observed_at.isoformat())\n\n    with st.container(border=True):\n        st.subheader("Connection pool telemetry")\n        st.write(\n            "Application pool telemetry is not connected yet. "\n            "Warehouse samples cannot establish application connection pool size."\n        )\n\n    st.info(\n        "Recommendation approval, simulated changes, and independent verification "\n        "remain part of the next workflow phase."\n    )\n\n\ndef render_notes() -> None:\n    page_header(\n        "Inspect the engineering",\n        "Engineering Notes",\n        "Understand what works, what is simulated, and where the engineering evidence lives.",\n    )\n\n    with st.container(border=True):\n        st.subheader("Independent demonstration")\n        st.write(\n            "BOND is an independent portfolio project. It is not an official Cortex "\n            "product and does not imply endorsement."\n        )\n\n    st.subheader("Current operating mode")\n    st.write(\n        "The interface uses packaged synthetic evidence. When restricted PostgreSQL "\n        "settings are supplied, workflow state is durable and session isolated. "\n        "Without those settings, the interface uses an in memory demonstration store. "\n        "The public interface does not use administrative database credentials."\n    )\n\n    st.subheader("Architecture")\n    st.code(\n        "Streamlit workspace and React evidence explorer\\\\n"\n        "                    |\\\\n"\n        " Shared application services / FastAPI interface\\\\n"\n        "                    |\\\\n"\n        "       Typed contracts and domain rules\\\\n"\n        "                    |\\\\n"\n        "           Repository interfaces\\\\n"\n        "                    |\\\\n"\n        "     Fixture adapter / PostgreSQL adapter",\n        language=None,\n    )\n\n    with st.expander("Hosting and availability"):\n        st.write(\n            "The submission targets free Streamlit and Supabase allowances. "\n            "Services may sleep, pause, or impose resource limits. Continuous "\n            "availability and production capacity are not established."\n        )\n\n    with st.expander("Security boundaries"):\n        st.write(\n            "The recorded client database connection passed certificate and hostname "\n            "verification. The separate pooler to PostgreSQL link was not reported "\n            "as TLS. Workflow access uses restricted runtime settings when supplied; "\n            "administrative database credentials are not used."\n        )\n        st.write(\n            "The React component can request inspection of a known service. "\n            "That request does not authorize an infrastructure action. "\n            "Style isolation is not a security sandbox."\n        )\n\n    with st.expander("Evidence and verification"):\n        st.write(\n            "The foundation recorded 57 passing tests. Later component checks "\n            "expanded the suite. Consult the repository and actual workflow runs "\n            "for current results rather than treating a static count as a live status."\n        )\n\n    st.link_button("Inspect the repository", "https://github.com/FriesRdBest/BOND")\n\n\ndef main() -> None:\n    st.set_page_config(\n        page_title="BOND | Engineering assurance",\n        page_icon="◈",\n        layout="wide",\n    )\n    apply_styles()\n    apply_refinements()\n    _render_intro()\n\n    if "workspace_page" not in st.session_state:\n        destinations = {\n            "scorecard": "Scorecard Console",\n            "catalog": "Catalog Repository",\n            "pipeline": "Pipeline Laboratory",\n            "engineering": "Engineering Notes",\n        }\n        requested_view = st.query_params.get("view")\n        st.session_state["workspace_page"] = (\n            destinations.get(requested_view, "Scorecard Console")\n            if isinstance(requested_view, str)\n            else "Scorecard Console"\n        )\n\n    with st.sidebar:\n        st.title("BOND")\n        st.caption("Engineering assurance workbench")\n        page = st.radio("Workspace", PAGES, key="workspace_page")\n        st.divider()\n        st.caption("Synthetic evidence")\n        st.caption("Independent portfolio demonstration")\n        st.link_button("Source repository", "https://github.com/FriesRdBest/BOND")\n\n    st.html(\n        '<div class="bond-contextbar">'\n        "<span><strong>Demonstration</strong> · Fixed synthetic evidence</span>"\n        "<span>No production actions</span>"\n        "</div>"\n    )\n\n    if page == "Pipeline Laboratory":\n        render_pipeline()\n    elif page == "Engineering Notes":\n        render_notes()\n    else:\n        snapshot = CatalogApplication(FixtureCatalogRepository()).snapshot()\n        if page == "Scorecard Console":\n            render_scorecard(snapshot)\n        else:\n            render_catalog(snapshot)\n
+"""Evidence inspection workspace. Synthetic data and no production actions."""
+
+from html import escape
+from uuid import uuid4
+
+import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
+
+from bond.application import CatalogApplication, OrganizationSnapshot, ServiceAssessment
+from bond.application_workflow import AssuranceWorkflow
+from bond.demo import warehouse_fixture
+from bond.domain.models import RuleStatus
+from bond.domain.rules import summarize
+from bond.domain.workflow import (
+    ExecutionRecord,
+    RecommendationDraft,
+    VerificationRecord,
+    WorkflowDecision,
+    WorkflowStatus,
+)
+from bond.presentation.data_views import render_line_chart, render_table
+from bond.presentation.explorer import NATIVE_SELECTION_KEY, render_explorer
+from bond.presentation.refinements import apply_refinements
+from bond.presentation.styles import apply_styles, load_tokens
+from bond.repositories.fixtures import FixtureCatalogRepository
+from bond.workflow_runtime import build_hosted_workflow_runtime
+
+PAGES = (
+    "Scorecard Console",
+    "Catalog Repository",
+    "Pipeline Laboratory",
+    "Engineering Notes",
+)
+
+WORKFLOW_SESSION_KEY = "assurance_session_id"
+
+
+def _workflow() -> AssuranceWorkflow:
+    if WORKFLOW_SESSION_KEY not in st.session_state:
+        try:
+            hosted_settings = dict(st.secrets)
+        except StreamlitSecretNotFoundError:
+            hosted_settings = {}
+        runtime = build_hosted_workflow_runtime(hosted_settings)
+        session_id = uuid4()
+        runtime.open_session(session_id)
+        st.session_state[WORKFLOW_SESSION_KEY] = session_id
+        st.session_state["assurance_workflow"] = runtime.application
+    return st.session_state["assurance_workflow"]
+
+
+def _open_service(service_id: str) -> None:
+    st.session_state["workspace_page"] = "Catalog Repository"
+    st.session_state["catalog_requested_service"] = service_id
+    st.session_state["catalog_search"] = ""
+    st.session_state["catalog_owner"] = "All owners"
+    st.session_state["catalog_result_filter"] = "All results"
+
+
+def page_header(eyebrow: str, title: str, description: str) -> None:
+    st.html(f'<div class="bond-eyebrow">{escape(eyebrow)}</div>')
+    st.title(title)
+    st.html(f'<p class="bond-introduction">{escape(description)}</p>')
+
+
+def service_table(assessments: tuple[ServiceAssessment, ...]) -> None:
+    rows = [
+        {
+            "Service": item.service.name,
+            "Owner": item.service.owner or "Unassigned",
+            "Tier": item.service.tier,
+            "Score": (
+                f"{item.summary.score_percent:.1f}%"
+                if item.summary.score_percent is not None
+                else "No score"
+            ),
+            "Failing rules": item.summary.failed,
+            "Missing evidence": item.summary.unknown,
+        }
+        for item in assessments
+    ]
+    if not rows:
+        st.info("No services match this view. Change the search or filters.")
+        return
+    render_table(rows, hide_index=True, width="stretch")
+
+
+def render_scorecard(snapshot: OrganizationSnapshot) -> None:
+    page_header(
+        "Organization assurance",
+        "Scorecard Console",
+        "Understand maturity, find accountable owners, "
+        "and move directly to the evidence behind a finding.",
+    )
+
+    columns = st.columns(4)
+    score = snapshot.summary.score_percent
+    coverage = snapshot.summary.evidence_coverage_percent
+
+    columns[0].metric("Maturity score", f"{score:.1f}%" if score is not None else "No score")
+    columns[1].metric(
+        "Evidence coverage",
+        f"{coverage:.1f}%" if coverage is not None else "No evidence",
+    )
+    columns[2].metric(
+        "Owned services",
+        f"{snapshot.owned_service_count} / {snapshot.service_count}",
+    )
+    columns[3].metric("Failing rules", snapshot.summary.failed)
+
+    st.caption(
+        "Three equally weighted rules per service. Missing evidence remains in the "
+        "score denominator and never counts as passing."
+    )
+
+    with st.expander("Understand the score"):
+        st.write(
+            f"{snapshot.summary.passed} passing results, "
+            f"{snapshot.summary.failed} failing results, and "
+            f"{snapshot.summary.unknown} unknown results across "
+            f"{snapshot.summary.total} gates."
+        )
+        st.write(
+            "Maturity is passing gates divided by all gates. Evidence coverage is known "
+            "results divided by all gates. Neither measure proves production readiness."
+        )
+
+    st.subheader("Attention queue")
+    attention = sorted(
+        (
+            item
+            for item in snapshot.assessments
+            if item.summary.failed > 0 or item.summary.unknown > 0
+        ),
+        key=lambda item: (-item.summary.failed, -item.summary.unknown, item.service.name),
+    )
+
+    if not attention:
+        st.info("No failing or unknown results exist in the current evidence.")
+
+    for item in attention:
+        with st.container(border=True):
+            detail, action = st.columns([4, 1])
+            with detail:
+                st.write(item.service.name)
+                st.caption(
+                    f"Owner: {item.service.owner or 'Unassigned'} · "
+                    f"{item.summary.failed} failing · {item.summary.unknown} missing"
+                )
+            with action:
+                st.button(
+                    "Inspect evidence",
+                    key=f"attention_{item.service.id}",
+                    on_click=_open_service,
+                    args=(item.service.id,),
+                )
+
+    st.subheader("Service maturity")
+    service_table(snapshot.assessments)
+
+    with st.container(border=True):
+        st.subheader("The assurance boundary")
+        st.write(
+            "Findings are inspectable today. Recommendations, approval, simulated execution, "
+            "and independent verification are the next workflow layer."
+        )
+
+
+def _matches_result(item: ServiceAssessment, result_filter: str) -> bool:
+    if result_filter == "Needs attention":
+        return item.summary.failed > 0
+    if result_filter == "Missing evidence":
+        return item.summary.unknown > 0
+    if result_filter == "Passing":
+        return item.summary.total > 0 and item.summary.failed == 0 and item.summary.unknown == 0
+    return True
+
+
+def _filtered_snapshot(
+    assessments: tuple[ServiceAssessment, ...],
+) -> OrganizationSnapshot:
+    return OrganizationSnapshot(
+        assessments=assessments,
+        summary=summarize(result for assessment in assessments for result in assessment.results),
+    )
+
+
+def _workflow_status_label(status: WorkflowStatus) -> str:
+    return {
+        WorkflowStatus.PROPOSED: "Proposed",
+        WorkflowStatus.APPROVED: "Approved",
+        WorkflowStatus.REJECTED: "Rejected",
+        WorkflowStatus.EXECUTED: "Simulated action recorded",
+        WorkflowStatus.VERIFIED: "Verified",
+        WorkflowStatus.REVIEW_REQUIRED: "Review required",
+    }[status]
+
+
+def _render_workflow(selected: ServiceAssessment) -> None:
+    workflow = _workflow()
+    session_id = st.session_state[WORKFLOW_SESSION_KEY]
+    service = selected.service
+
+    st.subheader("Improvement workflow")
+    st.caption(
+        "Recommendations are session isolated. Execution is simulated and "
+        "never changes production infrastructure."
+    )
+
+    recommendations = workflow.recommendations(session_id)
+    service_recommendations = tuple(
+        item for item in recommendations if item.service_id == service.id
+    )
+
+    failing_or_unknown = tuple(
+        result for result in selected.results if result.status is not RuleStatus.PASS
+    )
+
+    if failing_or_unknown:
+        with st.form("create_recommendation", border=True):
+            rule = st.selectbox(
+                "Evidence finding",
+                failing_or_unknown,
+                format_func=lambda item: f"{item.rule_id} · {item.status.value}",
+            )
+            title = st.text_input(
+                "Recommendation title",
+                value=f"Address {rule.rule_id} for {service.name}",
+            )
+            detail = st.text_area(
+                "Why this action is recommended",
+                value=rule.explanation,
+            )
+            expected = st.text_area(
+                "Expected verified result",
+                value="The selected evidence finding is resolved.",
+            )
+            submitted = st.form_submit_button("Propose recommendation")
+
+        if submitted:
+            try:
+                workflow.propose(
+                    session_id,
+                    RecommendationDraft(
+                        service_id=service.id,
+                        rule_id=rule.rule_id,
+                        rule_version=rule.version,
+                        title=title,
+                        detail=detail,
+                        owner=service.owner,
+                        expected_result=expected,
+                    ),
+                    uuid4(),
+                )
+                st.success("Recommendation proposed in this demonstration session.")
+                st.rerun()
+            except ValueError as error:
+                st.error(str(error))
+    else:
+        st.info("No failing or missing evidence is available for a new recommendation.")
+
+    if not service_recommendations:
+        st.caption("No recommendations exist for this service in this session.")
+        return
+
+    for item in service_recommendations:
+        with st.container(border=True):
+            status = _workflow_status_label(item.status)
+            st.write(f"**{item.title}** · {status}")
+            st.caption(
+                f"Rule {item.rule_id} · Version {item.rule_version} · "
+                f"Owner {item.owner or 'Unassigned'}"
+            )
+            st.write(item.detail)
+            st.write(f"Expected result: {item.expected_result}")
+
+            if item.status is WorkflowStatus.PROPOSED:
+                approval, rejection = st.columns(2)
+                with approval:
+                    if st.button("Approve", key=f"approve_{item.id}"):
+                        workflow.approve(
+                            item.id,
+                            session_id,
+                            WorkflowDecision(
+                                actor="Demonstration approver",
+                                reason="Approved for simulated execution.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+                with rejection:
+                    if st.button("Reject", key=f"reject_{item.id}"):
+                        workflow.reject(
+                            item.id,
+                            session_id,
+                            WorkflowDecision(
+                                actor="Demonstration approver",
+                                reason="Rejected in this demonstration session.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+
+            elif item.status is WorkflowStatus.APPROVED:
+                if st.button("Record simulated execution", key=f"execute_{item.id}"):
+                    workflow.execute(
+                        item.id,
+                        session_id,
+                        ExecutionRecord(
+                            actor="Demonstration automation",
+                            simulated_command="apply_documented_improvement",
+                            reason="The approved action is simulated.",
+                            request_id=uuid4(),
+                        ),
+                    )
+                    st.rerun()
+
+            elif item.status is WorkflowStatus.EXECUTED:
+                verified, review = st.columns(2)
+                with verified:
+                    if st.button("Verify success", key=f"verify_{item.id}"):
+                        workflow.verify(
+                            item.id,
+                            session_id,
+                            VerificationRecord(
+                                actor="Demonstration reviewer",
+                                observed_result="The expected evidence change was observed.",
+                                passed=True,
+                                reason="The expected result was confirmed.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+                with review:
+                    if st.button("Send for review", key=f"review_{item.id}"):
+                        workflow.verify(
+                            item.id,
+                            session_id,
+                            VerificationRecord(
+                                actor="Demonstration reviewer",
+                                observed_result="The expected evidence change was not observed.",
+                                passed=False,
+                                reason="Additional review is required.",
+                                request_id=uuid4(),
+                            ),
+                        )
+                        st.rerun()
+
+            with st.expander("Audit history"):
+                events = workflow.history(item.id, session_id)
+                if not events:
+                    st.caption("No workflow events are recorded yet.")
+                for event in events:
+                    st.write(
+                        f"{event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')} · "
+                        f"{event.kind.value} · {event.actor}"
+                    )
+                    st.caption(event.detail)
+
+
+def _native_service_detail(
+    selected: ServiceAssessment,
+    snapshot: OrganizationSnapshot,
+) -> None:
+    with st.container(border=True):
+        st.subheader(selected.service.name)
+        st.write(selected.service.description)
+        st.caption(
+            f"Owner: {selected.service.owner or 'Unassigned'} · "
+            f"Tier {selected.service.tier} · Synthetic source"
+        )
+
+        for result in selected.results:
+            label = {
+                RuleStatus.PASS: "Pass",
+                RuleStatus.FAIL: "Needs attention",
+                RuleStatus.UNKNOWN: "Missing evidence",
+            }[result.status]
+            st.html(
+                f'<span class="bond-status bond-{escape(result.status.value)}">'
+                f"{escape(label)}</span>"
+            )
+            st.write(result.explanation)
+            st.caption(f"Rule: {result.rule_id} · Version: {result.version}")
+
+        names = {item.service.id: item.service.name for item in snapshot.assessments}
+        dependencies = [
+            names.get(identifier, identifier) for identifier in selected.service.dependencies
+        ]
+        st.write("Dependencies")
+        st.write(", ".join(dependencies) if dependencies else "No dependencies recorded")
+        st.caption(
+            "Fixed observation: "
+            + selected.service.observed_at.isoformat()
+            + ". Not a live production observation."
+        )
+
+    _render_workflow(selected)
+
+
+def render_catalog(snapshot: OrganizationSnapshot) -> None:
+    page_header(
+        "Service context",
+        "Catalog Repository",
+        "Follow a service from ownership and dependencies to the rule evidence that needs review.",
+    )
+
+    search = st.text_input(
+        "Search services",
+        placeholder="Search by service name or owner",
+        key="catalog_search",
+    )
+
+    owners = sorted(
+        {item.service.owner for item in snapshot.assessments if item.service.owner is not None}
+    )
+
+    first, second = st.columns(2)
+    with first:
+        owner = st.selectbox(
+            "Owner",
+            ["All owners", "Unassigned", *owners],
+            key="catalog_owner",
+        )
+    with second:
+        result_filter = st.selectbox(
+            "Rule results",
+            ["All results", "Needs attention", "Missing evidence", "Passing"],
+            key="catalog_result_filter",
+        )
+
+    query = search.strip().casefold()
+    matching = tuple(
+        item
+        for item in snapshot.assessments
+        if (
+            not query
+            or query in item.service.name.casefold()
+            or query in (item.service.owner or "").casefold()
+        )
+        and (
+            owner == "All owners"
+            or (owner == "Unassigned" and item.service.owner is None)
+            or item.service.owner == owner
+        )
+        and _matches_result(item, result_filter)
+    )
+
+    st.caption(f"{len(matching)} of {snapshot.service_count} services in this view")
+    service_table(matching)
+
+    if not matching:
+        return
+    names = {item.service.id: item.service.name for item in matching}
+    selected_key = NATIVE_SELECTION_KEY
+    requested = st.session_state.pop("catalog_requested_service", None)
+    existing = st.session_state.get(selected_key)
+
+    if isinstance(requested, str) and requested in names:
+        st.session_state[selected_key] = requested
+    elif not isinstance(existing, str) or existing not in names:
+        st.session_state[selected_key] = next(iter(names))
+
+    native_only = st.toggle(
+        "Use native evidence view",
+        value=False,
+        key="native_evidence_only",
+        help="The native service inspector remains available without the React explorer.",
+    )
+
+    if not native_only:
+        selection = st.session_state.get(selected_key)
+        selected_id = selection if isinstance(selection, str) and selection in names else None
+        event = render_explorer(_filtered_snapshot(matching), selected_id)
+        if event is not None:
+            st.session_state[selected_key] = event.service_id
+
+    st.subheader("Native service inspection")
+    st.caption("This inspection path does not depend on the custom component.")
+
+    selected_id = st.selectbox(
+        "Inspect service",
+        list(names),
+        format_func=lambda identifier: names[identifier],
+        key=selected_key,
+    )
+
+    selected = next(item for item in matching if item.service.id == selected_id)
+    _native_service_detail(selected, snapshot)
+
+
+def render_pipeline() -> None:
+    window = warehouse_fixture()
+    tokens = load_tokens()
+
+    page_header(
+        "Warehouse evidence",
+        "Pipeline Laboratory",
+        "Inspect warehouse consumption and query behavior without confusing "
+        "synthetic evidence with live activity.",
+    )
+
+    p95 = window.p95_ms
+    columns = st.columns(3)
+    columns[0].metric("Warehouse credits", f"{window.credits_consumed:.2f}")
+    columns[1].metric("Credit burn per hour", f"{window.credits_per_hour:.2f}")
+    columns[2].metric("P95 query latency", f"{p95:.0f} ms" if p95 is not None else "No samples")
+
+    st.caption(
+        f"{window.warehouse} · Synthetic source · "
+        f"{window.window_seconds} second window · "
+        f"{len(window.latencies_ms)} samples"
+    )
+
+    st.subheader("Query latency")
+    render_line_chart(
+        {"Latency in milliseconds": list(window.latencies_ms)},
+        color=tokens.primitives["violet"],
+        height=260,
+    )
+
+    threshold = st.number_input(
+        "Review threshold in milliseconds",
+        min_value=1,
+        value=300,
+        step=50,
+    )
+    only_above = st.toggle("Show only samples above the review threshold", value=False)
+    st.caption("Exploratory filter only. It does not change policy or persisted evidence.")
+
+    rows = [
+        {
+            "Query sample": f"DEMO_{index:03d}",
+            "Latency in milliseconds": latency,
+            "Review state": "Above threshold" if latency > threshold else "Within threshold",
+            "Source": "Synthetic",
+        }
+        for index, latency in enumerate(window.latencies_ms, start=1)
+        if not only_above or latency > threshold
+    ]
+
+    st.caption(f"Showing {len(rows)} of {len(window.latencies_ms)} query samples")
+
+    if rows:
+        render_table(rows, hide_index=True, width="stretch")
+    else:
+        st.info("No query samples exceed the current review threshold.")
+
+    with st.expander("Measurement method and source"):
+        st.write(
+            "P95 uses nearest rank over the ten fixed samples. Warehouse credits "
+            "are consumption units, not money. The threshold is an inspection aid, "
+            "not an approved engineering policy."
+        )
+        st.caption("Fixed observation: " + window.observed_at.isoformat())
+
+    with st.container(border=True):
+        st.subheader("Connection pool telemetry")
+        st.write(
+            "Application pool telemetry is not connected yet. "
+            "Warehouse samples cannot establish application connection pool size."
+        )
+
+    st.info(
+        "Recommendation approval, simulated changes, and independent verification "
+        "remain part of the next workflow phase."
+    )
+
+
+def render_notes() -> None:
+    page_header(
+        "Inspect the engineering",
+        "Engineering Notes",
+        "Understand what works, what is simulated, and where the engineering evidence lives.",
+    )
+
+    with st.container(border=True):
+        st.subheader("Independent demonstration")
+        st.write(
+            "BOND is an independent portfolio project. It is not an official Cortex "
+            "product and does not imply endorsement."
+        )
+
+    st.subheader("Current operating mode")
+    st.write(
+        "The interface uses packaged synthetic evidence. When restricted PostgreSQL "
+        "settings are supplied, workflow state is durable and session isolated. "
+        "Without those settings, the interface uses an in memory demonstration store. "
+        "The public interface does not use administrative database credentials."
+    )
+
+    st.subheader("Architecture")
+    st.code(
+        "Streamlit workspace and React evidence explorer\\n"
+        "                    |\\n"
+        " Shared application services / FastAPI interface\\n"
+        "                    |\\n"
+        "       Typed contracts and domain rules\\n"
+        "                    |\\n"
+        "           Repository interfaces\\n"
+        "                    |\\n"
+        "     Fixture adapter / PostgreSQL adapter",
+        language=None,
+    )
+
+    with st.expander("Hosting and availability"):
+        st.write(
+            "The submission targets free Streamlit and Supabase allowances. "
+            "Services may sleep, pause, or impose resource limits. Continuous "
+            "availability and production capacity are not established."
+        )
+
+    with st.expander("Security boundaries"):
+        st.write(
+            "The recorded client database connection passed certificate and hostname "
+            "verification. The separate pooler to PostgreSQL link was not reported "
+            "as TLS. Workflow access uses restricted runtime settings when supplied; "
+            "administrative database credentials are not used."
+        )
+        st.write(
+            "The React component can request inspection of a known service. "
+            "That request does not authorize an infrastructure action. "
+            "Style isolation is not a security sandbox."
+        )
+
+    with st.expander("Evidence and verification"):
+        st.write(
+            "The foundation recorded 57 passing tests. Later component checks "
+            "expanded the suite. Consult the repository and actual workflow runs "
+            "for current results rather than treating a static count as a live status."
+        )
+
+    st.link_button("Inspect the repository", "https://github.com/FriesRdBest/BOND")
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="BOND | Engineering assurance",
+        page_icon="◈",
+        layout="wide",
+    )
+    apply_styles()
+    apply_refinements()
+
+    if "workspace_page" not in st.session_state:
+        destinations = {
+            "scorecard": "Scorecard Console",
+            "catalog": "Catalog Repository",
+            "pipeline": "Pipeline Laboratory",
+            "engineering": "Engineering Notes",
+        }
+        requested_view = st.query_params.get("view")
+        st.session_state["workspace_page"] = (
+            destinations.get(requested_view, "Scorecard Console")
+            if isinstance(requested_view, str)
+            else "Scorecard Console"
+        )
+
+    with st.sidebar:
+        st.title("BOND")
+        st.caption("Engineering assurance workbench")
+        page = st.radio("Workspace", PAGES, key="workspace_page")
+        st.divider()
+        st.caption("Synthetic evidence")
+        st.caption("Independent portfolio demonstration")
+        st.link_button("Source repository", "https://github.com/FriesRdBest/BOND")
+
+    st.html(
+        '<div class="bond-contextbar">'
+        "<span><strong>Demonstration</strong> · Fixed synthetic evidence</span>"
+        "<span>No production actions</span>"
+        "</div>"
+    )
+
+    if page == "Pipeline Laboratory":
+        render_pipeline()
+    elif page == "Engineering Notes":
+        render_notes()
+    else:
+        snapshot = CatalogApplication(FixtureCatalogRepository()).snapshot()
+        if page == "Scorecard Console":
+            render_scorecard(snapshot)
+        else:
+            render_catalog(snapshot)
