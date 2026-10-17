@@ -17,7 +17,7 @@ def apply_intro_shell() -> None:
             overflow: hidden;
             background: #000;
             pointer-events: auto;
-            animation: bond-intro-out 340ms ease-in 2720ms forwards;
+            animation: bond-intro-out 269ms ease-in 2150ms forwards;
         }
 
         .bond-rays {
@@ -38,15 +38,15 @@ def apply_intro_shell() -> None:
             );
             filter: blur(0.4px);
             opacity: 0;
-            animation: bond-line-pass 1870ms linear 340ms infinite;
+            animation: bond-line-pass 1477ms linear 269ms infinite;
         }
 
-        .bond-line:nth-child(1) { top: 18%; animation-delay: 340ms; }
-        .bond-line:nth-child(2) { top: 32%; animation-delay: 578ms; }
-        .bond-line:nth-child(3) { top: 47%; animation-delay: 422ms; }
-        .bond-line:nth-child(4) { top: 61%; animation-delay: 666ms; }
-        .bond-line:nth-child(5) { top: 74%; animation-delay: 490ms; }
-        .bond-line:nth-child(6) { top: 86%; animation-delay: 748ms; }
+        .bond-line:nth-child(1) { top: 18%; animation-delay: 269ms; }
+        .bond-line:nth-child(2) { top: 32%; animation-delay: 457ms; }
+        .bond-line:nth-child(3) { top: 47%; animation-delay: 333ms; }
+        .bond-line:nth-child(4) { top: 61%; animation-delay: 526ms; }
+        .bond-line:nth-child(5) { top: 74%; animation-delay: 387ms; }
+        .bond-line:nth-child(6) { top: 86%; animation-delay: 591ms; }
 
         .bond-title {
             position: relative;
@@ -61,8 +61,8 @@ def apply_intro_shell() -> None:
             color: #FFFFFF;
             text-shadow: 0 0 34px rgba(207, 194, 254, 0.35);
             animation:
-                bond-title-blink 1870ms steps(1, end) 340ms forwards,
-                bond-title-solid 136ms ease-out 2210ms forwards;
+                bond-title-blink 1477ms steps(1, end) 269ms forwards,
+                bond-title-solid 107ms ease-out 1746ms forwards;
         }
 
         .bond-slot {
@@ -143,8 +143,8 @@ def apply_intro_shell() -> None:
                 return span;
             });
             const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            const start = performance.now() + 340;
-            const rollDuration = 1870;
+            const start = performance.now() + 269;
+            const rollDuration = 1477;
             function tick(now) {
                 const elapsed = now - start;
                 if (elapsed < 0) {
