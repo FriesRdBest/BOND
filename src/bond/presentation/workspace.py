@@ -31,18 +31,11 @@ from bond.repositories.fixtures import FixtureCatalogRepository
 from bond.workflow_runtime import build_hosted_workflow_runtime
 
 PAGES = (
-    "b · Scorecard Console",
-    "o · Catalog Repository",
-    "n · Pipeline Laboratory",
-    "d · Engineering Notes",
+    "Scorecard Console",
+    "Catalog Repository",
+    "Pipeline Laboratory",
+    "Engineering Notes",
 )
-
-PAGE_ROUTES = {
-    "b · Scorecard Console": "Scorecard Console",
-    "o · Catalog Repository": "Catalog Repository",
-    "n · Pipeline Laboratory": "Pipeline Laboratory",
-    "d · Engineering Notes": "Engineering Notes",
-}
 
 WORKFLOW_SESSION_KEY = "assurance_session_id"
 
@@ -62,7 +55,7 @@ def _workflow() -> AssuranceWorkflow:
 
 
 def _open_service(service_id: str) -> None:
-    st.session_state["workspace_page"] = "o · Catalog Repository"
+    st.session_state["workspace_page"] = "Catalog Repository"
     st.session_state["catalog_requested_service"] = service_id
     st.session_state["catalog_search"] = ""
     st.session_state["catalog_owner"] = "All owners"
@@ -661,16 +654,16 @@ def main() -> None:
 
     if "workspace_page" not in st.session_state:
         destinations = {
-            "scorecard": "b · Scorecard Console",
-            "catalog": "o · Catalog Repository",
-            "pipeline": "n · Pipeline Laboratory",
-            "engineering": "d · Engineering Notes",
+            "scorecard": "Scorecard Console",
+            "catalog": "Catalog Repository",
+            "pipeline": "Pipeline Laboratory",
+            "engineering": "Engineering Notes",
         }
         requested_view = st.query_params.get("view")
         st.session_state["workspace_page"] = (
-            destinations.get(requested_view, "b · Scorecard Console")
+            destinations.get(requested_view, "Scorecard Console")
             if isinstance(requested_view, str)
-            else "b · Scorecard Console"
+            else "Scorecard Console"
         )
 
     with st.sidebar:
@@ -694,14 +687,13 @@ def main() -> None:
         "</div>"
     )
 
-    route = PAGE_ROUTES.get(page, "Scorecard Console")
-    if route == "Pipeline Laboratory":
+    if page == "Pipeline Laboratory":
         render_pipeline()
-    elif route == "Engineering Notes":
+    elif page == "Engineering Notes":
         render_notes()
     else:
         snapshot = CatalogApplication(FixtureCatalogRepository()).snapshot()
-        if route == "Scorecard Console":
+        if page == "Scorecard Console":
             render_scorecard(snapshot)
         else:
             render_catalog(snapshot)
