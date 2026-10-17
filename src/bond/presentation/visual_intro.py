@@ -56,7 +56,7 @@ def apply_intro_shell() -> None:
             font-size: min(21vw, 42vh);
             font-weight: 900;
             letter-spacing: 0.02em;
-            color: #F4F3F8;
+            color: #FFFFFF;
             text-shadow: 0 0 44px rgba(207, 194, 254, 0.35);
         }
 
@@ -106,7 +106,7 @@ def apply_intro_shell() -> None:
                 <div class="bond-line"></div>
                 <div class="bond-line"></div>
             </div>
-            <div class="bond-title" id="bond-title"></div>
+            <div class="bond-title" id="bond-title">- b-o-n-d -</div>
         </div>
 
         <script>
@@ -115,6 +115,7 @@ def apply_intro_shell() -> None:
             const container = document.getElementById("bond-title");
             if (!container) return;
             const chars = Array.from(target);
+            container.textContent = "";
             const spans = chars.map((character) => {
                 const span = document.createElement("span");
                 span.className = "bond-slot";
