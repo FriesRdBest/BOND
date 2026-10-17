@@ -1,4 +1,4 @@
-"""Cinematic full-screen introduction with background rays."""
+"""Cinematic full-screen introduction with rays, slot title, and exit."""
 
 import streamlit as st
 
@@ -63,6 +63,24 @@ def apply_intro_shell() -> None:
             animation: bond-ray-right 2750ms linear 500ms forwards;
         }
 
+        .bond-title {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            gap: 0.18em;
+            font-size: clamp(3rem, 12vw, 9rem);
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: #F4F3F8;
+            text-shadow: 0 0 34px rgba(167, 139, 250, 0.35);
+        }
+
+        .bond-slot {
+            display: inline-block;
+            min-width: 0.62em;
+            text-align: center;
+        }
+
         @keyframes bond-rays-in {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -99,6 +117,50 @@ def apply_intro_shell() -> None:
 
         <div class="bond-intro">
             <div class="bond-rays"></div>
+            <div class="bond-title" id="bond-title"></div>
         </div>
+
+        <script>
+        (function () {
+            const target = "- b-o-n-d -";
+            const container = document.getElementById("bond-title");
+            if (!container) return;
+            const chars = Array.from(target);
+            const spans = chars.map((character) => {
+                const span = document.createElement("span");
+                span.className = "bond-slot";
+                span.textContent = character === " " ? "\u00A0" : "A";
+                container.appendChild(span);
+                return span;
+            });
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const start = performance.now() + 500;
+            const rollDuration = 2750;
+            function tick(now) {
+                const elapsed = now - start;
+                if (elapsed < 0) {
+                    requestAnimationFrame(tick);
+                    return;
+                }
+                if (elapsed >= rollDuration) {
+                    spans.forEach((span, index) => {
+                        const character = chars[index];
+                        span.textContent = character === " " ? "\u00A0" : character;
+                    });
+                    return;
+                }
+                spans.forEach((span, index) => {
+                    const character = chars[index];
+                    if (character === " " || character === "-") {
+                        span.textContent = character === " " ? "\u00A0" : character;
+                        return;
+                    }
+                    span.textContent = alphabet[Math.floor(Math.random() * alphabet.length)];
+                });
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        })();
+        </script>
         """
     )
